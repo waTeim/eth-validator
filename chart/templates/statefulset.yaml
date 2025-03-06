@@ -1,0 +1,325 @@
+
+{{- $execution_endpoint := include "eth-validator.executionEndpoint" . }}
+{{- $beacon_nodes := include "eth-validator.beaconNodes" . }}
+{{- $beacon_pod := include "eth-validator.beaconPod" . }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "eth-validator.fullname" . }}-geth
+  labels:
+    {{- include "eth-validator-geth.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "eth-validator.fullname" . }}-geth
+  replicas: {{ .Values.geth.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "eth-validator-geth.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.geth.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "eth-validator-geth.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.geth.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "eth-validator.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.geth.podSecurityContext | nindent 8 }}
+      containers:
+        - name: geth
+          securityContext:
+            {{- toYaml .Values.geth.securityContext | nindent 12 }}
+          image: "{{ .Values.geth.image.repository }}:{{ .Values.geth.image.tag | default "latest" }}"
+          imagePullPolicy: {{ .Values.geth.image.pullPolicy }}
+          command: ["geth"]
+          args:
+            - "-{{ .Values.network }}"
+            - "--cache={{ .Values.geth.cache }}"
+            - "--datadir=/data"
+            - "--syncmode=snap"
+            - "--db.engine=pebble"
+            {{- if .Values.externalIp }}
+            - "--nat=extip:{{ .Values.externalIp }}"
+            {{- end }}
+            - "--port={{ .Values.geth.external.p2p.port }}"
+            - "--http"
+            - "--http.addr=0.0.0.0"
+            - "--http.port={{ .Values.geth.internal.api.port }}"
+            - "--http.api=admin,eth,net,web3,txpool"
+            - "--http.vhosts=*"
+            - "--http.corsdomain=*"
+            - "--ws"
+            - "--ws.addr=0.0.0.0"
+            - "--ws.port={{ .Values.geth.internal.api.port }}"
+            - "--ws.api=admin,eth,net,web3,txpool"
+            - "--ws.origins=*"
+            - "--authrpc.jwtsecret=/etc/jwt.hex"
+            - "--authrpc.addr=0.0.0.0"
+            - "--authrpc.port={{ .Values.geth.internal.auth.port }}"
+            - "--authrpc.vhosts=*"
+            - "--metrics"
+            - "--metrics.addr=0.0.0.0"
+            - "--metrics.port={{ .Values.geth.internal.metrics.port }}"
+            - "--config=/config/geth.toml"
+          ports:
+            - name: http-api
+              containerPort: {{ .Values.geth.internal.api.port }}
+              protocol: TCP
+            - name: http-auth
+              containerPort: {{ .Values.geth.internal.auth.port }}
+              protocol: TCP
+            - name: p2p-tcp
+              containerPort: {{ .Values.geth.external.p2p.port }}
+              protocol: TCP
+            - name: p2p-udp
+              containerPort: {{ .Values.geth.external.p2p.port }}
+              protocol: UDP
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: auth-jwt
+              mountPath: "/etc/jwt.hex"
+              subPath: jwt.hex
+              readOnly: true
+            - name: config
+              mountPath: "/config"
+              readOnly: true
+          resources:
+            {{- toYaml .Values.geth.resources | nindent 12 }}
+          readinessProbe:
+            tcpSocket:
+              port: http-api
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - "geth attach --exec 'net.peerCount' /data/geth.ipc"
+            initialDelaySeconds: 60
+            periodSeconds: 30
+      volumes:
+        - name: auth-jwt
+          secret:
+            secretName: {{ include "eth-validator.fullname" . }}-auth-jwt
+        - name: config
+          configMap:
+            name: {{ include "eth-validator.fullname" . }}-geth-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app: {{ include "eth-validator.name" . }}-geth
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.geth.storage.size }}
+        storageClassName: {{ .Values.geth.storage.class }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "eth-validator.fullname" . }}-lighthouse-beacon
+  labels:
+    {{- include "eth-validator-lighthouse-beacon.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "eth-validator.fullname" . }}-lighthouse-beacon
+  replicas: {{ .Values.lighthouseBeacon.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "eth-validator-lighthouse-beacon.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.lighthouseBeacon.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "eth-validator-lighthouse-beacon.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.lighthouseBeacon.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "eth-validator.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.lighthouseBeacon.podSecurityContext | nindent 8 }}
+      containers:
+        - name: lighthouse-beacon
+          securityContext:
+            {{- toYaml .Values.lighthouseBeacon.securityContext | nindent 12 }}
+          image: "{{ .Values.lighthouseBeacon.image.repository }}:{{ .Values.lighthouseBeacon.image.tag | default "latest" }}"
+          imagePullPolicy: {{ .Values.lighthouseBeacon.image.pullPolicy }}
+          command: ["lighthouse"]
+          args:
+            - "bn"
+            - "--network={{ .Values.network }}"
+            - "--staking"
+            - "--datadir=/data"
+            {{- if .Values.lighthouseBeacon.checkpointSyncUrl }}
+            - "--checkpoint-sync-url={{ .Values.lighthouseBeacon.checkpointSyncUrl }}"
+            {{- end }}
+            - "--execution-endpoint={{ $execution_endpoint }}"
+            - "--execution-jwt=/etc/jwt.hex"
+            {{- if .Values.externalIp }}
+            - "--enr-address={{ .Values.externalIp }}"
+            - "--enr-tcp-port={{ .Values.lighthouseBeacon.external.p2p.port }}"
+            - "--enr-udp-port={{ .Values.lighthouseBeacon.external.p2p.port }}"
+            {{- end }}
+            {{- if .Values.lighthouseBeacon.mev.enabled }}
+            - "--builder=http://localhost:{{ .Values.lighthouseBeacon.mev.port }}"
+            {{- end }}
+            - "--listen-address=0.0.0.0"
+            - "--port={{ .Values.lighthouseBeacon.external.p2p.port }}"
+            - "--http"
+            - "--http-address=0.0.0.0"
+            - "--http-port={{ .Values.lighthouseBeacon.internal.api.port }}"
+            - "--metrics"
+            - "--metrics-address=0.0.0.0"
+            - "--metrics-port={{ .Values.lighthouseBeacon.internal.metrics.port }}"
+          ports:
+            - name: http-api
+              containerPort: {{ .Values.lighthouseBeacon.internal.api.port }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ .Values.lighthouseBeacon.internal.metrics.port }}
+              protocol: TCP
+            - name: p2p-tcp
+              containerPort: {{ .Values.lighthouseBeacon.external.p2p.port }}
+              protocol: TCP
+            - name: p2p-udp
+              containerPort: {{ .Values.lighthouseBeacon.external.p2p.port }}
+              protocol: UDP
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: auth-jwt
+              mountPath: "/etc/jwt.hex"
+              subPath: jwt.hex
+              readOnly: true
+          resources:
+            {{- toYaml .Values.lighthouseBeacon.resources | nindent 12 }}
+          readinessProbe:
+            tcpSocket:
+              port: http-api
+            initialDelaySeconds: 10
+            periodSeconds: 10
+        {{- if .Values.lighthouseBeacon.mev.enabled }}
+        - name: mev-boost
+          securityContext:
+            {{- toYaml .Values.lighthouseBeacon.mev.securityContext | nindent 14 }}
+          image: "{{ .Values.lighthouseBeacon.mev.image.repository }}:{{ .Values.lighthouseBeacon.mev.image.tag | default "latest" }}"
+          imagePullPolicy: {{ .Values.lighthouseBeacon.mev.image.pullPolicy }}
+          command: ["/app/mev-boost"]
+          args:
+            - "--{{ .Values.network }}"
+            - "--addr=localhost:{{ .Values.lighthouseBeacon.mev.port }}"
+            - "--relay-check"
+            - "--relay={{ .Values.lighthouseBeacon.mev.relay }}"
+        {{- end }}
+      volumes:
+        - name: auth-jwt
+          secret:
+            secretName: {{ include "eth-validator.fullname" . }}-auth-jwt
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app: {{ include "eth-validator.name" . }}-lighthouse-beacon
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.lighthouseBeacon.storage.size }}
+        storageClassName: {{ .Values.lighthouseBeacon.storage.class }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "eth-validator.fullname" . }}-lighthouse-validator
+  labels:
+    {{- include "eth-validator-lighthouse-validator.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "eth-validator.fullname" . }}-lighthouse-validator
+  replicas: {{ .Values.lighthouseValidator.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "eth-validator-lighthouse-validator.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.lighthouseValidator.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "eth-validator-lighthouse-validator.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.lighthouseValidator.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "eth-validator.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.lighthouseValidator.podSecurityContext | nindent 8 }}
+      containers:
+        - name: lighthouse-validator
+          securityContext:
+            {{- toYaml .Values.lighthouseValidator.securityContext | nindent 12 }}
+          image: "{{ .Values.lighthouseValidator.image.repository }}:{{ .Values.lighthouseValidator.image.tag | default "latest" }}"
+          imagePullPolicy: {{ .Values.lighthouseValidator.image.pullPolicy }}
+          command: ["lighthouse-launch"]
+          args:
+            - "--port={{ .Values.lighthouseValidator.internal.launch.port }}"
+            - "--pod={{ $beacon_pod }}"
+            - "--"
+            - "vc"
+            - "--network={{ .Values.network }}"
+            - "--enable-doppelganger-protection"
+            - "--datadir=/data"
+            - "--beacon-nodes={{ $beacon_nodes }}"
+            - "--builder-proposals"
+            - "--metrics"
+            - "--metrics-address=0.0.0.0"
+            - "--metrics-port={{ .Values.lighthouseValidator.internal.metrics.port }}"
+          ports:
+            - name: launch
+              containerPort: {{ .Values.lighthouseValidator.internal.launch.port }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ .Values.lighthouseValidator.internal.metrics.port }}
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            {{- toYaml .Values.lighthouseValidator.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              port: launch
+              path: /healthz
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              port: launch
+              path: /readyz
+            initialDelaySeconds: 10
+            periodSeconds: 10
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app: {{ include "eth-validator.name" . }}-lighthouse-validator
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.lighthouseValidator.storage.size }}
+        storageClassName: {{ .Values.lighthouseValidator.storage.class }}

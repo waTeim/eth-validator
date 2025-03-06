@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "eth-validator.fullname" . }}-geth-config
+  labels:
+    {{- include "eth-validator-geth.labels" . | nindent 4 }}
+data:
+  geth.toml: |-
+    [Node.P2P]
+    DialRatio = 3

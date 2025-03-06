@@ -1,0 +1,123 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "eth-validator.fullname" . }}-geth
+  labels:
+    {{- include "eth-validator-geth.labels" . | nindent 4 }}
+  {{- with .Values.geth.internal.annotations }}
+  annotations:
+     {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.geth.internal.type }}
+  ports:
+    - port: {{ .Values.geth.internal.api.port }}
+      targetPort: http-api
+      protocol: TCP
+      name: http-api
+    - port: {{ .Values.geth.internal.auth.port }}
+      targetPort: http-auth
+      protocol: TCP
+      name: http-auth
+    - port: {{ .Values.geth.internal.metrics.port }}
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    {{- include "eth-validator-geth.selectorLabels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "eth-validator.fullname" . }}-geth-public
+  labels:
+    {{- include "eth-validator-geth.labels" . | nindent 4 }}
+  {{- with .Values.geth.external.annotations }}
+  annotations:
+     {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.geth.external.type }}
+  ports:
+    - port: {{ .Values.geth.external.p2p.port }}
+      targetPort: p2p-tcp
+      protocol: TCP
+      name: p2p-tcp
+    - port: {{ .Values.geth.external.p2p.port }}
+      targetPort: p2p-udp
+      protocol: UDP
+      name: p2p-udp
+  selector:
+    {{- include "eth-validator-geth.selectorLabels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "eth-validator.fullname" . }}-lighthouse-beacon
+  labels:
+    {{- include "eth-validator-lighthouse-beacon.labels" . | nindent 4 }}
+  {{- with .Values.lighthouseBeacon.internal.annotations }}
+  annotations:
+     {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.lighthouseBeacon.internal.api.type }}
+  ports:
+    - port: {{ .Values.lighthouseBeacon.internal.api.port }}
+      targetPort: http-api
+      protocol: TCP
+      name: http-api
+    - port: {{ .Values.lighthouseBeacon.internal.metrics.port }}
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    {{- include "eth-validator-lighthouse-beacon.selectorLabels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "eth-validator.fullname" . }}-lighthouse-beacon-public
+  labels:
+    {{- include "eth-validator-lighthouse-beacon.labels" . | nindent 4 }}
+  {{- with .Values.lighthouseBeacon.external.annotations }}
+  annotations:
+     {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.lighthouseBeacon.external.p2p.type }}
+  ports:
+    - port: {{ .Values.lighthouseBeacon.external.p2p.port }}
+      targetPort: p2p-tcp
+      protocol: TCP
+      name: p2p-tcp
+    - port: {{ .Values.lighthouseBeacon.external.p2p.port }}
+      targetPort: p2p-udp
+      protocol: UDP
+      name: p2p-udp
+  selector:
+    {{- include "eth-validator-lighthouse-beacon.selectorLabels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "eth-validator.fullname" . }}-lighthouse-validator
+  labels:
+    {{- include "eth-validator-lighthouse-validator.labels" . | nindent 4 }}
+  {{- with .Values.lighthouseValidator.internal.annotations }}
+  annotations:
+     {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.lighthouseValidator.internal.type }}
+  ports:
+    - port: {{ .Values.lighthouseValidator.internal.launch.port }}
+      targetPort: launch
+      protocol: TCP
+      name: launch
+    - port: {{ .Values.lighthouseValidator.internal.metrics.port }}
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    {{- include "eth-validator-lighthouse-validator.selectorLabels" . | nindent 4 }}
