@@ -173,7 +173,7 @@ spec:
             - "--enr-tcp-port={{ .Values.lighthouseBeacon.external.p2p.port }}"
             - "--enr-udp-port={{ .Values.lighthouseBeacon.external.p2p.port }}"
             {{- end }}
-            {{- if .Values.lighthouseBeacon.mev.enabled }}
+            {{- if and .Values.lighthouseBeacon.mev.enabled .Values.lighthouseBeacon.mev.relay }}
             - "--builder=http://localhost:{{ .Values.lighthouseBeacon.mev.port }}"
             {{- end }}
             - "--listen-address=0.0.0.0"
@@ -211,7 +211,7 @@ spec:
               port: http-api
             initialDelaySeconds: 10
             periodSeconds: 10
-        {{- if .Values.lighthouseBeacon.mev.enabled }}
+        {{- if and .Values.lighthouseBeacon.mev.enabled .Values.lighthouseBeacon.mev.relay }}
         - name: mev-boost
           securityContext:
             {{- toYaml .Values.lighthouseBeacon.mev.securityContext | nindent 14 }}
