@@ -1,20 +1,23 @@
-# Set your image name and tag here.
 IMAGE ?= wateim/lighthouse-launch
 TAG ?= latest
 
-.PHONY: all build push clean
+.PHONY: all docs build push clean
 
-# Default target builds and then pushes the image.
+# Generate swagger docs, then build and push.
 all: build push
 
-# Build the Docker image using the Dockerfile in the current directory.
-build:
+# Generate OpenAPI documentation via swag.
+docs:
+	swag init --parseDependency --parseInternal --parseDepth=1
+
+# Build the Docker image (depends on generating swagger docs).
+build: docs
 	docker build --platform=linux/amd64 -t $(IMAGE):$(TAG) .
 
-# Push the Docker image to your registry.
+# Push the Docker image.
 push:
 	docker push $(IMAGE):$(TAG)
 
-# Clean up by removing the built image.
+# Clean up the built image.
 clean:
 	docker rmi $(IMAGE):$(TAG)

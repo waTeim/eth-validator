@@ -2,21 +2,68 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-nameOverride: ""
+affinity: {}
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+externalIp: ""
 fullnameOverride: ""
 
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: true
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ""
+geth:
+  affinity: {}
 
-network: "holesky"
-externalIp: ""
+  cache: 4096
 
+  external:
+    annotations: {}
+    type: LoadBalancer
+    p2p:
+      port: 30303
+
+  image:
+    repository: ethereum/client-go
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: "latest"
+
+  imagePullSecrets: []
+
+  internal:
+    annotations: {}
+    type: ClusterIP
+    api:
+      port: 8545
+    auth:
+      port: 8551
+    metrics:
+      port: 6060
+
+  maxPeers: 0
+
+  nodeSelector: {}
+  podAnnotations: {}
+  podSecurityContext: {}
+  replicaCount: 1
+
+  resources:
+    limits:
+      cpu: 3
+      memory: 10G
+    requests:
+      cpu: 3
+      memory: 10G
+    
+  securityContext: {}
+
+  storage:
+    class: "default"
+    size: "600G"
+  
 ingress:
   enabled: false
   className: ""
@@ -33,54 +80,16 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
-geth:
-  cache: 4096
-  replicaCount: 1
+lighthouseBeacon:
+  affinity: {}
 
-  image:
-    repository: ethereum/client-go
-    pullPolicy: IfNotPresent
-    # Overrides the image tag whose default is the chart appVersion.
-    tag: "latest"
+  checkpointSyncUrl: ""
 
-  imagePullSecrets: []
-
-  podAnnotations: {}
-
-  podSecurityContext: {}
-
-  securityContext: {}
-
-  internal:
-    annotations: {}
-    type: ClusterIP
-    api:
-      port: 8545
-    auth:
-      port: 8551
-    metrics:
-      port: 6060
   external:
     annotations: {}
     type: LoadBalancer
     p2p:
-      port: 30303
-
-  resources:
-    limits:
-      cpu: 3
-      memory: 10G
-    requests:
-      cpu: 3
-      memory: 10G
-    
-  storage:
-    class: "default"
-    size: "600G"
-  
-lighthouseBeacon:
-  checkpointSyncUrl: ""
-  replicaCount: 1
+      port: 31400
 
   image:
     repository: sigp/lighthouse
@@ -90,12 +99,6 @@ lighthouseBeacon:
 
   imagePullSecrets: []
 
-  podAnnotations: {}
-
-  podSecurityContext: {}
-
-  securityContext: {}
-
   internal:
     annotations: {}
     type: ClusterIP
@@ -104,24 +107,6 @@ lighthouseBeacon:
     metrics:
       port: 5054
 
-  external:
-    annotations: {}
-    type: LoadBalancer
-    p2p:
-      port: 31400
-
-  resources:
-    limits:
-      cpu: 4
-      memory: 16G
-    requests:
-      cpu: 4
-      memory: 16G
-    
-  storage:
-    class: "default"
-    size: "250G"
-  
   mev:
     enabled: true
     port: 18550
@@ -135,25 +120,38 @@ lighthouseBeacon:
     imagePullSecrets: []
     securityContext: {}
 
-      
+  nodeSelector: {}
+  podAnnotations: {}
+  podSecurityContext: {}
 
-lighthouseValidator:
-  checkpointSyncUrl: ""
   replicaCount: 1
 
+  resources:
+    limits:
+      cpu: 4
+      memory: 16G
+    requests:
+      cpu: 4
+      memory: 16G
+    
+  securityContext: {}
+
+  storage:
+    class: "default"
+    size: "250G"
+  
+  targetPeers: 0
+
+
+lighthouseValidator:
+  affinity: {}
+
   image:
-    repository: wateim/lighthouse-launch
     pullPolicy: IfNotPresent
-    # Overrides the image tag whose default is the chart appVersion.
+    repository: wateim/lighthouse-launch
     tag: "latest"
 
   imagePullSecrets: []
-
-  podAnnotations: {}
-
-  podSecurityContext: {}
-
-  securityContext: {}
 
   internal:
     annotations: {}
@@ -163,6 +161,12 @@ lighthouseValidator:
     metrics:
       port: 5054
 
+  loglevel: ""
+  nodeSelector: {}
+  podAnnotations: {}
+  podSecurityContext: {}
+  replicaCount: 1
+
   resources:
     limits:
       cpu: 1
@@ -170,20 +174,24 @@ lighthouseValidator:
     requests:
       cpu: 1
       memory: 2G
+
+  securityContext: {}
     
   storage:
     class: "default"
     size: "2G"
 
-autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
-
+nameOverride: ""
+network: "hoodi"
 nodeSelector: {}
 
-tolerations: []
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
 
-affinity: {}
+tolerations: []

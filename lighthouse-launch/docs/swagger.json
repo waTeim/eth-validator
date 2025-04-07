@@ -1,0 +1,410 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "API for launching Lighthouse after consensus readiness.",
+        "title": "Lighthouse Launcher API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:5000",
+    "basePath": "/",
+    "paths": {
+        "/healthz": {
+            "get": {
+                "description": "Always returns 200 to indicate the launcher is running.",
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Liveness Check",
+                "responses": {
+                    "200": {
+                        "description": "alive",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/readyz": {
+            "get": {
+                "description": "Returns 200 if the consensus client is ready; otherwise, 503.",
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Readiness Check",
+                "responses": {
+                    "200": {
+                        "description": "ready",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "503": {
+                        "description": "not ready",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/start": {
+            "post": {
+                "description": "Starts Lighthouse in validator mode using extra command-line flags and adds the --suggested-fee-recipient flag based on the provided fee_recipient parameter.",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Exec"
+                ],
+                "summary": "Launch Lighthouse Validator Mode with Fee Recipient",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Fee recipient address",
+                        "name": "fee_recipient",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "If true, logs the command without executing it",
+                        "name": "dry_run",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lighthouse validator launched successfully",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing required parameter or flag",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/status": {
+            "get": {
+                "description": "Returns the current status of the Lighthouse validator process.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Status"
+                ],
+                "summary": "Get Lighthouse Validator Status",
+                "responses": {
+                    "200": {
+                        "description": "Status response",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/validator": {
+            "get": {
+                "description": "If a \"name\" query parameter is provided, returns the validator's public key from its keystore. If not provided, recursively scans the validators directory and returns an array of validators (each with name and public key).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "Retrieve validator information",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Validator name",
+                        "name": "name",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Single validator info (name and pubkey) if 'name' is provided, or an array of objects if not",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Validator not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Updates an existing validator keystore file using datadir, network, and secrets-dir values from lighthouseArgs.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "Update a validator keystore",
+                "parameters": [
+                    {
+                        "description": "Validator request payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.ValidatorRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Validator keystore updated",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or missing required flags",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Validator keystore does not exist",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Creates a new validator keystore file using datadir, network, and secrets-dir values from lighthouseArgs.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "Create a validator keystore",
+                "parameters": [
+                    {
+                        "description": "Validator request payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.ValidatorRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Validator keystore created",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or missing required flags",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Validator keystore already exists",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Deletes the validator definition directory using extra command‑line flags for datadir and network.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "Delete a validator definition",
+                "parameters": [
+                    {
+                        "description": "Validator deletion request payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.DeleteValidatorRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Validator definition deleted",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or missing required flags",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Validator definition does not exist",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "main.Crypto": {
+            "type": "object",
+            "properties": {
+                "checksum": {
+                    "description": "checksum information",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/main.Module"
+                        }
+                    ]
+                },
+                "cipher": {
+                    "description": "cipher information",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/main.Module"
+                        }
+                    ]
+                },
+                "kdf": {
+                    "description": "key derivation function information",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/main.Module"
+                        }
+                    ]
+                }
+            }
+        },
+        "main.DeleteValidatorRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "Name is the unique identifier for the validator.\nexample: validator1",
+                    "type": "string"
+                }
+            }
+        },
+        "main.Keystore": {
+            "type": "object",
+            "properties": {
+                "crypto": {
+                    "$ref": "#/definitions/main.Crypto"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "pubkey": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "description": "should conform to UUID format",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "typically 1 for EIP-2335",
+                    "type": "integer"
+                }
+            }
+        },
+        "main.Module": {
+            "type": "object",
+            "properties": {
+                "function": {
+                    "description": "e.g., the name of the KDF or cipher function",
+                    "type": "string"
+                },
+                "message": {
+                    "description": "a message string (often used for checksum/cipher validation)",
+                    "type": "string"
+                },
+                "params": {
+                    "description": "parameters specific to the function (e.g., salt, N, r, p for scrypt)",
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        },
+        "main.ValidatorRequest": {
+            "type": "object",
+            "properties": {
+                "keystore": {
+                    "description": "Keystore contains the validator's keystore details in EIP-2335 format.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/main.Keystore"
+                        }
+                    ]
+                },
+                "name": {
+                    "description": "Name is the unique identifier for the validator.\nexample: validator1",
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

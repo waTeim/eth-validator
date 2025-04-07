@@ -1,17 +1,20 @@
-# Build stage: compile the Go program
+# Build stage: compile the Go program using Go 1.23.
 FROM golang:1.23 AS builder
 WORKDIR /app
-# Copy your Go source code (e.g. main.go) into the container.
+# Copy module files and download dependencies.
+COPY go.mod go.sum ./
+RUN go mod download
+# Copy the rest of the source code.
 COPY . .
-# Build a static binary named "entrypoint".
+# Build the static binary named "lighthouse-launch".
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o lighthouse-launch .
 
-# Final stage: use the official Lighthouse image as the base.
-FROM sigp/lighthouse:latest
+# Final stage: use the official Lighthouse base image.
+#FROM sigp/lighthouse:v7.0.0-beta.5
+FROM sigp/lighthouse:latest-unstable
 WORKDIR /app
-# Copy the compiled binary from the builder stage.
+# Copy the compiled binary and pre-generated swagger docs.
 COPY --from=builder /app/lighthouse-launch /usr/local/bin/lighthouse-launch
-# (Optional) Expose the port your HTTP server will listen on.
+COPY docs /app/docs
 EXPOSE 5000
-# Set the container's entrypoint to your binary.
 ENTRYPOINT ["/usr/local/bin/lighthouse-launch"]

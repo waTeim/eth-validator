@@ -1,0 +1,280 @@
+basePath: /
+definitions:
+  main.Crypto:
+    properties:
+      checksum:
+        allOf:
+        - $ref: '#/definitions/main.Module'
+        description: checksum information
+      cipher:
+        allOf:
+        - $ref: '#/definitions/main.Module'
+        description: cipher information
+      kdf:
+        allOf:
+        - $ref: '#/definitions/main.Module'
+        description: key derivation function information
+    type: object
+  main.DeleteValidatorRequest:
+    properties:
+      name:
+        description: |-
+          Name is the unique identifier for the validator.
+          example: validator1
+        type: string
+    type: object
+  main.Keystore:
+    properties:
+      crypto:
+        $ref: '#/definitions/main.Crypto'
+      description:
+        type: string
+      path:
+        type: string
+      pubkey:
+        type: string
+      uuid:
+        description: should conform to UUID format
+        type: string
+      version:
+        description: typically 1 for EIP-2335
+        type: integer
+    type: object
+  main.Module:
+    properties:
+      function:
+        description: e.g., the name of the KDF or cipher function
+        type: string
+      message:
+        description: a message string (often used for checksum/cipher validation)
+        type: string
+      params:
+        additionalProperties: true
+        description: parameters specific to the function (e.g., salt, N, r, p for
+          scrypt)
+        type: object
+    type: object
+  main.ValidatorRequest:
+    properties:
+      keystore:
+        allOf:
+        - $ref: '#/definitions/main.Keystore'
+        description: Keystore contains the validator's keystore details in EIP-2335
+          format.
+      name:
+        description: |-
+          Name is the unique identifier for the validator.
+          example: validator1
+        type: string
+    type: object
+host: localhost:5000
+info:
+  contact: {}
+  description: API for launching Lighthouse after consensus readiness.
+  title: Lighthouse Launcher API
+  version: "1.0"
+paths:
+  /healthz:
+    get:
+      description: Always returns 200 to indicate the launcher is running.
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: alive
+          schema:
+            type: string
+      summary: Liveness Check
+      tags:
+      - Health
+  /readyz:
+    get:
+      description: Returns 200 if the consensus client is ready; otherwise, 503.
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: ready
+          schema:
+            type: string
+        "503":
+          description: not ready
+          schema:
+            type: string
+      summary: Readiness Check
+      tags:
+      - Health
+  /start:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Starts Lighthouse in validator mode using extra command-line flags
+        and adds the --suggested-fee-recipient flag based on the provided fee_recipient
+        parameter.
+      parameters:
+      - description: Fee recipient address
+        in: formData
+        name: fee_recipient
+        required: true
+        type: string
+      - description: If true, logs the command without executing it
+        in: formData
+        name: dry_run
+        type: boolean
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Lighthouse validator launched successfully
+          schema:
+            type: string
+        "400":
+          description: Missing required parameter or flag
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Launch Lighthouse Validator Mode with Fee Recipient
+      tags:
+      - Exec
+  /status:
+    get:
+      description: Returns the current status of the Lighthouse validator process.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Status response
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get Lighthouse Validator Status
+      tags:
+      - Status
+  /validator:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes the validator definition directory using extra command‑line
+        flags for datadir and network.
+      parameters:
+      - description: Validator deletion request payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/main.DeleteValidatorRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Validator definition deleted
+          schema:
+            type: string
+        "400":
+          description: Invalid request or missing required flags
+          schema:
+            type: string
+        "404":
+          description: Validator definition does not exist
+          schema:
+            type: string
+      summary: Delete a validator definition
+      tags:
+      - Validator
+    get:
+      consumes:
+      - application/json
+      description: If a "name" query parameter is provided, returns the validator's
+        public key from its keystore. If not provided, recursively scans the validators
+        directory and returns an array of validators (each with name and public key).
+      parameters:
+      - description: Validator name
+        in: query
+        name: name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Single validator info (name and pubkey) if 'name' is provided,
+            or an array of objects if not
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Validator not found
+          schema:
+            type: string
+      summary: Retrieve validator information
+      tags:
+      - Validator
+    post:
+      consumes:
+      - application/json
+      description: Creates a new validator keystore file using datadir, network, and
+        secrets-dir values from lighthouseArgs.
+      parameters:
+      - description: Validator request payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/main.ValidatorRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Validator keystore created
+          schema:
+            type: string
+        "400":
+          description: Invalid request or missing required flags
+          schema:
+            type: string
+        "409":
+          description: Validator keystore already exists
+          schema:
+            type: string
+      summary: Create a validator keystore
+      tags:
+      - Validator
+    put:
+      consumes:
+      - application/json
+      description: Updates an existing validator keystore file using datadir, network,
+        and secrets-dir values from lighthouseArgs.
+      parameters:
+      - description: Validator request payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/main.ValidatorRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Validator keystore updated
+          schema:
+            type: string
+        "400":
+          description: Invalid request or missing required flags
+          schema:
+            type: string
+        "404":
+          description: Validator keystore does not exist
+          schema:
+            type: string
+      summary: Update a validator keystore
+      tags:
+      - Validator
+swagger: "2.0"
