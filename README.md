@@ -107,28 +107,73 @@ infrastructure needs.
 ----------------------------------------
 ### 2. Lighthouse Launch (Go Application)
 
-The Go application in the lighthouse-launch/ directory is responsible for 
-launching and managing the Ethereum validator. Its key file is main.go.
+#### Overview:
 
-#### lighthouse-launch/main.go
+The Lighthouse Launcher API is a Go-based RESTful service designed for managing and launching Lighthouse validators. It primarily handles validator keystores that conform to the EIP-2335 specification, while also interfacing with Kubernetes to monitor the readiness of consensus nodes (via pod or service endpoint watches). The server exposes endpoints for validator creation, update, deletion, retrieval, and launching the Lighthouse validator process, along with health and status checks.
 
-The main.go file (over 44,000 characters) contains the main function, flag parsing logic,
-and the core routines for initializing and running the validator. Key sections include:
+#### Key Features:
 
-- Initialization:  
-  Sets up configuration parameters, logging, and necessary service connections.
+• **Validator Keystore Management**
+  - Supports creation, update, deletion, and retrieval of validator keystores.
+  - Validates keystore JSON data against the EIP-2335 schema.
+  - Stores keystore files under a structured directory hierarchy based on the datadir and network parameters.
 
-- Command-line Interface:  
-  Uses flags to allow users to specify configuration files or override defaults.
+• **Lighthouse Validator Launcher**
+  - Launches the Lighthouse validator in validator mode using exec.Command.
+  - Automatically adds flags (e.g. --init-slashing-protection, --suggested-fee-recipient) based on file presence and request parameters.
+  - Captures and logs process output (stdout/stderr) concurrently.
+  - Monitors for early termination and updates validator status accordingly.
 
-- Execution Flow:  
-  After setup, the main function calls into various modules (typically in the 
-  pkg/validator package, not detailed in this README) to start the validator logic,
-  handle errors, and manage shutdown procedures.
+• **Kubernetes Integration for Consensus Readiness**
+  - Provides functions to watch a specific pod or service endpoints in a Kubernetes cluster.
+  - Monitors readiness by checking the PodReady condition or endpoint availability.
+  - Updates a global readiness flag which is used by the health endpoints.
 
-For full details, please refer directly to the lighthouse-launch/main.go file.
+• **Health, Status, and Swagger Documentation Endpoints**
+  - **Health Endpoints:** `/healthz` (liveness) always returns “alive”; `/readyz` (readiness) returns “ready” only when the consensus client is confirmed ready.
+  - **Status Endpoint:** `/status` returns the current state of the validator process (running, stopped, or errored).
+  - **Swagger Documentation:** `/swagger` endpoints serve interactive API documentation to assist with client integration.
 
-----------------------------------------
+• **Command-Line Configuration**
+  - Uses standard command-line flags for HTTP server configuration (address, port, loglevel).
+  - Accepts extra flags (such as `--datadir`, `--network`, and `--secrets-dir`) to customize paths for validator data and secrets.
+  - Determines logging level through command-line flags, environment variables, or defaults to “info”.
+
+#### Project Structure:
+
+• **Main Package:** 
+  - Contains the entry point (`main` function) that initializes logging, parses flags, and starts the HTTP server.
+  - Launches a goroutine to monitor consensus readiness using either pod or service endpoint watches.
+
+• **API Handlers:** 
+  - Implements endpoints for validator CRUD operations (`/validator` for GET, POST, PUT, DELETE).
+  - Provides the `/start` endpoint to trigger the Lighthouse validator process with an optional fee recipient.
+  - Includes dedicated handlers for status, readiness, and liveness checks.
+
+• **Utility and Helper Functions:**
+  - Functions for flag parsing, keystore validation, and file operations (writing and deleting keystore files).
+  - Custom logging handlers for consistent output using Go’s slog package.
+
+#### Dependencies:
+
+• Echo Web Framework: Simplifies HTTP routing, middleware integration (logging and recovery), and request/response handling.
+• Kubernetes Client-Go: Enables in-cluster configuration and resource watching for readiness monitoring.
+• Swaggo: Generates Swagger-based API documentation.
+• Standard Go Libraries: Used for JSON encoding/decoding, command execution, file I/O, context management, and logging.
+
+#### Usage:
+
+1. Build the application with Go.
+2. Start the server with required flags such as:
+   - `-address` and `-port` for server binding.
+   - `-loglevel` to control logging verbosity.
+   - Additional flags (`--datadir`, `--network`, `--secrets-dir`) passed after a “--” separator for validator-specific configurations.
+3. Interact with the API endpoints:
+   - Use `/validator` for managing keystores.
+   - Call `/start` to launch the Lighthouse validator.
+   - Monitor `/status`, `/readyz`, and `/healthz` for process health.
+   - Access `/swagger` for interactive API documentation.
+
 ### 3. Python Tools
 
 #### tools/create_jwt.py
