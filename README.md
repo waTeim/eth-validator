@@ -89,21 +89,8 @@ and resource limits. Modify these values as needed for your deployment environme
 The chart/templates/ directory contains Kubernetes resource templates used to
 deploy the Eth Validator. Each template uses helper functions defined in _helpers.tpl.
 
-- _helpers.tpl  
-  Contains template helper definitions for naming conventions and common values.
-
-- NOTES.txt  
-  Provides post-installation notes that guide users on verifying the deployment.
-
 - configmap.yaml  
   Defines a ConfigMap that holds configuration data consumed by the validator.
-
-- hpa.yaml  
-  Contains the configuration for a Horizontal Pod Autoscaler (HPA) to dynamically 
-  adjust the number of replicas based on load.
-
-- ingress.yaml  
-  Defines an Ingress resource to expose the service externally (if enabled).
 
 - rbac.yaml  
   Sets up RBAC (Role-Based Access Control) policies for secure deployment.
@@ -113,9 +100,6 @@ deploy the Eth Validator. Each template uses helper functions defined in _helper
 
 - statefulset.yaml  
   Deploys the validator as a StatefulSet to maintain stable network identities.
-
-- tests/test-connection.yaml  
-  Provides test configurations to ensure connectivity and validate service endpoints.
 
 Review these files in the chart/templates/ directory to tailor them to your 
 infrastructure needs.
