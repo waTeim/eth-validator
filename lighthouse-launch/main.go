@@ -129,9 +129,22 @@ func init() {
 	validatorStatus.Store("stopped")
 }
 
-// initLogger initializes the logger using log/slog.
-// It checks the --loglevel flag first, then the LOG_LEVEL env variable,
-// and defaults to "info" if neither is set.
+// initLogger initializes the package-level logger using the log/slog package.
+// It determines the log level by checking in the following order:
+//  1. The provided loglevel argument (from a command-line flag such as --loglevel).
+//  2. The LOG_LEVEL environment variable.
+//  3. Defaults to "info" if neither is set.
+//
+// The function maps the resolved log level string (case-insensitively) to a corresponding slog.Level:
+//   - "debug" maps to slog.LevelDebug
+//   - "warn"  maps to slog.LevelWarn
+//   - "error" maps to slog.LevelError
+//   - "info"  maps to slog.LevelInfo
+//
+// A new text handler is then created with options to output to os.Stdout, include source file
+// information (AddSource: true), and enforce the selected log level. This handler is used to instantiate
+// the global logger variable. Finally, an informational log entry is written to confirm initialization
+// along with the effective log level.
 func initLogger(loglevel string) {
 	lvlStr := os.Getenv("LOG_LEVEL")
 	if loglevel != "" {
@@ -156,8 +169,39 @@ func initLogger(loglevel string) {
 	logger.Info("Logger initialized", "Level", lvlStr)
 }
 
-// waitForConsensusPodReady watches the specified pod until it becomes ready.
-// It checks the PodReady condition.
+// waitForConsensusPodReady monitors a specified pod until it becomes ready
+// by checking the PodReady condition.
+//
+// Parameters:
+//   - podName: A non-empty string specifying the name of the pod to watch.
+//     An error is returned if podName is empty.
+//   - namespace: The Kubernetes namespace where the pod is running. If empty,
+//     the function attempts to read the namespace from
+//     "/var/run/secrets/kubernetes.io/serviceaccount/namespace" and defaults
+//     to "default" on failure.
+//   - timeout: A duration specifying the maximum time to wait for the pod
+//     to become ready. If the timeout is reached before the pod is ready, the
+//     function returns an error.
+//
+// Workflow:
+//  1. Checks that podName is provided.
+//  2. Determines the namespace either from the provided argument, by reading a
+//     file for the service account, or defaults to "default".
+//  3. Creates an in-cluster Kubernetes configuration and initializes a clientset.
+//  4. Sets up a watch on the specified pod using a field selector based on the
+//     pod name.
+//  5. Monitors the watcher's channel for events, checking each pod event for a
+//     PodReady condition with a status of true.
+//  6. Returns nil once the pod is ready, or an error if the watch channel closes
+//     unexpectedly or if the timeout is reached.
+//
+// Returns:
+//   - nil if the pod becomes ready within the specified timeout.
+//   - An error if any issue arises (e.g., missing pod name, failure in configuration,
+//     issues setting up the watch, or timeout).
+//
+// This function is critical in ensuring that the consensus pod reaches a ready
+// state before further operations are performed. It checks the PodReady condition.
 func waitForConsensusPodReady(podName, namespace string, timeout time.Duration) error {
 	if podName == "" {
 		return fmt.Errorf("pod name is required")
@@ -215,9 +259,38 @@ func waitForConsensusPodReady(podName, namespace string, timeout time.Duration) 
 	}
 }
 
-// waitForConsensusReady watches service endpoints until ready.
-// This is used as a fallback if no pod name is provided.
-func waitForConsensusReady(serviceName, namespace string, timeout time.Duration) error {
+// waitForConsensusServiceReady watches service endpoints until they are ready.
+// This function is used as a fallback if no pod name is provided.
+//
+// Parameters:
+//   - serviceName: The name of the service whose endpoints are monitored. An error is
+//     returned if this is empty (indicating the -service flag is required).
+//   - namespace: The Kubernetes namespace for the service. If empty, the function tries
+//     to read the namespace from
+//     "/var/run/secrets/kubernetes.io/serviceaccount/namespace" and defaults to
+//     "default" on failure.
+//   - timeout: A duration specifying the maximum time to wait for the service's endpoints
+//     to become ready. If the endpoints do not become ready within this time, an error
+//     is returned.
+//
+// Workflow:
+//  1. Validates that serviceName is provided.
+//  2. Determines the namespace either from the provided argument, by reading a file,
+//     or by defaulting to "default".
+//  3. Creates an in-cluster Kubernetes configuration and initializes a clientset.
+//  4. Sets up a watch on the Endpoints resource for the specified service using a field
+//     selector based on serviceName.
+//  5. Monitors events from the watcher. For events of type Added or Modified, it casts
+//     the object to Endpoints and invokes endpointsAreReady to check if the endpoints
+//     are ready.
+//  6. Returns nil once endpoints are ready; otherwise, returns an error if the watch
+//     channel closes or the timeout is reached.
+//
+// Returns:
+//   - nil if the service endpoints are ready within the specified timeout.
+//   - An error if there is a validation failure, configuration issue, watch error,
+//     or if the timeout expires before readiness. This is used as a fallback if no pod name is provided.
+func waitForConsensusServiceReady(serviceName, namespace string, timeout time.Duration) error {
 	if serviceName == "" {
 		return fmt.Errorf("the -service flag is required")
 	}
@@ -274,7 +347,16 @@ func waitForConsensusReady(serviceName, namespace string, timeout time.Duration)
 	}
 }
 
-// endpointsAreReady returns true if any subset of endpoints has at least one address.
+// endpointsAreReady checks if any subset in the provided Endpoints object
+// contains at least one address.
+//
+// Parameter:
+//   - e: A pointer to a corev1.Endpoints object representing the service
+//     endpoints. This may include multiple subsets of addresses.
+//
+// Returns:
+//   - true if at least one subset contains one or more addresses.
+//   - false if e is nil, contains no subsets, or if all subsets are empty.
 func endpointsAreReady(e *corev1.Endpoints) bool {
 	if e == nil || len(e.Subsets) == 0 {
 		return false
@@ -288,6 +370,20 @@ func endpointsAreReady(e *corev1.Endpoints) bool {
 }
 
 // validateModule verifies that the required fields in a Module are present.
+//
+// This function checks a Module instance to ensure that the "Function" field
+// is non-empty and the "Params" field is not nil. These fields are mandatory
+// for proper operation and configuration.
+//
+// Parameters:
+//   - name: A string identifier for the Module, used to construct descriptive
+//     error messages if a field is missing.
+//   - mod:  The Module instance to validate.
+//
+// Returns:
+//   - nil if the Module contains the required fields.
+//   - An error if either the Function or Params field is missing, with an
+//     error message indicating the missing field.
 func validateModule(name string, mod Module) error {
 	if mod.Function == "" {
 		return fmt.Errorf("missing required field: %s.function", name)
@@ -333,7 +429,25 @@ func validateEIP2335Keystore(data []byte) error {
 	return nil
 }
 
-// flagExists returns true if the flag (or flag=value form) exists in args.
+// validateEIP2335Keystore checks that the provided JSON data conforms to the
+// EIP-2335 keystore specification as described by the schema.
+//
+// Parameters:
+//   - data: A byte slice containing the JSON representation of the keystore.
+//
+// Workflow:
+//  1. Unmarshals the JSON into a Keystore instance. Returns an error if the
+//     JSON is invalid.
+//  2. Validates required top-level fields, ensuring that 'path' and 'uuid'
+//     are present.
+//  3. Verifies that the 'uuid' matches the expected UUID format.
+//  4. Checks that the keystore 'version' is at least 1.
+//  5. Validates the crypto object by ensuring its 'kdf', 'checksum', and
+//     'cipher' modules have the necessary fields using validateModule.
+//
+// Returns:
+//   - nil if the JSON data is valid and conforms to the specification.
+//   - An error describing the first encountered issue in the keystore data
 func flagExists(args []string, flagName string) bool {
 	for _, arg := range args {
 		if arg == flagName || strings.HasPrefix(arg, flagName+"=") {
@@ -345,7 +459,25 @@ func flagExists(args []string, flagName string) bool {
 
 // launchLighthouseValidator launches Lighthouse in validator mode.
 // It invokes "lighthouse validator ..." using the provided arguments.
-// In validator mode, no password is required so stdin is closed immediately.
+// In validator mode, no password is required so the stdin pipe is closed
+// immediately.
+//
+// The function performs the following steps:
+//  1. Constructs the expected path for the slashing protection database
+//     (validators/slashing_protection.sqlite) inside the given datadir.
+//  2. If the file does not exist and the flag
+//     "--init-slashing-protection" is not present in args, it adds this flag.
+//  3. Logs the command arguments and creates an exec.Command to run the
+//     Lighthouse binary.
+//  4. Obtains stdout, stderr, and stdin pipes from the command.
+//  5. Starts the command, closes the stdin pipe, and launches separate
+//     goroutines to scan and log output from stdout and stderr.
+//  6. Waits for the command to finish in a separate goroutine, capturing its
+//     result through a channel.
+//  7. Waits up to 10 seconds for an early exit. If the process exits early,
+//     it updates the validatorStatus to "errored" or "stopped" accordingly.
+//  8. If no exit occurs within 10 seconds, logs a success message and continues
+//     monitoring the process in the background.
 func launchLighthouseValidator(datadir string, args []string) error {
 
 	// Construct the expected path for the slashing protection database.
@@ -434,8 +566,31 @@ func launchLighthouseValidator(datadir string, args []string) error {
 
 // writeValidatorKeystore writes the validator keystore file to
 // {datadir}/{network}/validators/{name}/voting-keystore.json.
-// If overwrite is false (creation), it errors if the file already exists.
-// If overwrite is true (update), it errors if the file does not exist.
+// Depending on the overwrite flag, it performs one of two checks:
+//   - If overwrite is false (creation), it errors if the file already
+//     exists.
+//   - If overwrite is true (update), it errors if the file does not
+//     exist.
+//
+// The function executes the following steps:
+//  1. Constructs the target file path using datadir, network, and name.
+//  2. Checks file existence based on the value of overwrite.
+//  3. Ensures the target directory exists by creating it if needed.
+//  4. Writes the keystore data (as a JSON byte slice) to the file with
+//     permission 0644.
+//
+// Parameters:
+//   - name:     The identifier for the validator.
+//   - datadir:  The base directory for validator data.
+//   - network:  The network name to include in the keystore path.
+//   - keystore: The keystore JSON data as a byte slice.
+//   - overwrite: A boolean flag indicating whether this is an update (true)
+//     or a creation (false).
+//
+// Returns:
+//   - nil on success.
+//   - An error if a file existence check, directory creation, or file write
+//     operation fails.
 func writeValidatorKeystore(name, datadir, network string, keystore []byte, overwrite bool) error {
 	filePath := filepath.Join(datadir, "validators", network, name, "voting-keystore.json")
 	if overwrite {
@@ -468,13 +623,25 @@ func writeValidatorKeystore(name, datadir, network string, keystore []byte, over
 	return nil
 }
 
-// / parseExtraArgs parses the extra arguments (those passed after "--")
-// using the standard flag package. It ignores unknown flags.
+// parseExtraArgs parses the extra arguments (those passed after "--") using
+// the standard flag package. Unknown flags are ignored.
+//
 // It expects the following flags to be present:
 //
 //	--datadir, --network, and --secrets-dir.
 //
-// If any are missing or empty, it returns an error.
+// If any are missing or empty, an error is returned.
+//
+// Parameters:
+//
+//	args: A slice of argument strings that may include extra flags.
+//
+// Returns:
+//
+//	datadir:   The path to the data directory.
+//	network:   The network name.
+//	secretsDir:The path to the secrets directory.
+//	err:       An error if parsing fails or required flags are missing.
 func parseExtraArgs(args []string) (datadir, network, secretsDir string, err error) {
 	// Define the known flags.
 	knownFlags := map[string]bool{
@@ -531,8 +698,18 @@ func parseExtraArgs(args []string) (datadir, network, secretsDir string, err err
 	return *dPtr, *nPtr, *sPtr, nil
 }
 
-// deleteValidatorDefinitionsFile deletes the file "validator_definitions.yml" located in {datadir}/{network}/validators.
-// If the file does not exist, it does nothing. Any other error is returned.
+// deleteValidatorDefinitionsFile deletes the file
+// "validator_definitions.yml" located in {datadir}/{network}/validators.
+// If the file does not exist, no error is returned. Any other error
+// encountered is propagated.
+//
+// Parameters:
+//   - datadir: The base directory for validator data.
+//   - network: The network name. (Note: currently not used in the file path.)
+//
+// Returns:
+//   - nil if the file was successfully removed or did not exist.
+//   - An error if there was an issue checking or removing the file.
 func deleteValidatorDefinitionsFile(datadir, network string) error {
 	filePath := filepath.Join(datadir, "validators", "validator_definitions.yml")
 	// Check if the file exists.
@@ -925,6 +1102,24 @@ func livenessHandler(c echo.Context) error {
 	return c.String(200, "alive")
 }
 
+// main is the entry point of the application. It performs the following tasks:
+//  1. Parses command-line flags for HTTP server configuration,
+//     consensus readiness settings, and logging.
+//  2. Initializes the logger using the specified loglevel (or
+//     default values if none is provided).
+//  3. Launches a goroutine that watches for consensus readiness.
+//     It uses the pod name (if provided) to check for pod readiness,
+//     or falls back to watching service endpoints.
+//  4. Sets up an HTTP server using the Echo framework with recover
+//     and logging middleware.
+//  5. Registers API routes for health checks, Swagger documentation,
+//     and validator management (create, update, delete, etc.).
+//  6. Starts the HTTP server on the specified address and port, and
+//     logs any startup errors.
+//
+// The consensus watcher updates a global flag once the consensus client
+// is ready, and the HTTP server provides endpoints to interact with the
+// validator operations.
 func main() {
 	var loglevel string
 	// Flags for HTTP server and readiness watcher.
@@ -949,7 +1144,7 @@ func main() {
 			err = waitForConsensusPodReady(*podName, *namespaceFlag, *timeoutFlag)
 		} else {
 			logger.Info("Starting endpoints watcher...")
-			err = waitForConsensusReady(*serviceName, *namespaceFlag, *timeoutFlag)
+			err = waitForConsensusServiceReady(*serviceName, *namespaceFlag, *timeoutFlag)
 		}
 		if err != nil {
 			logger.Error("Consensus client not ready", "Err", err)
