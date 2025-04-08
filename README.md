@@ -150,35 +150,8 @@ For full details, please refer directly to the lighthouse-launch/main.go file.
 #### tools/create_jwt.py
 
 This Python script generates JWT tokens for authenticating requests to the validator API.
-An excerpt from the file is shown below:
+It accepts a secret key and an optional expiration time.
 
---------------------------------------------------
-#!/usr/bin/env python3
-import jwt
-import datetime
-import argparse
-
-def create_token(secret, algorithm="HS256", exp_minutes=60):
-    payload = {
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=exp_minutes),
-        "iat": datetime.datetime.utcnow()
-    }
-    return jwt.encode(payload, secret, algorithm=algorithm)
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Create a JWT token")
-    parser.add_argument("--secret", required=True, help="Secret key for JWT encoding")
-    parser.add_argument("--exp", type=int, default=60, help="Expiration time in minutes")
-    args = parser.parse_args()
-    token = create_token(args.secret, exp_minutes=args.exp)
-    print("Generated JWT token:")
-    print(token)
---------------------------------------------------
-
-This script uses the PyJWT library to create tokens. It accepts a secret key and an 
-optional expiration time.
-
-----------------------------------------
 ## Installation & Usage Instructions
 
 ### Deploying with Helm
