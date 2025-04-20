@@ -124,7 +124,7 @@ spec:
               port: http-api
             initialDelaySeconds: 10
             periodSeconds: 10
-          llivenessProbe:
+          livenessProbe:
             exec:
               command:
                 - sh

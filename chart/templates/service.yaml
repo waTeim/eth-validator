@@ -61,7 +61,7 @@ metadata:
      {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  type: {{ .Values.lighthouseBeacon.internal.api.type }}
+  type: {{ .Values.lighthouseBeacon.internal.type }}
   ports:
     - port: {{ .Values.lighthouseBeacon.internal.api.port }}
       targetPort: http-api
@@ -85,7 +85,7 @@ metadata:
      {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  type: {{ .Values.lighthouseBeacon.external.p2p.type }}
+  type: {{ .Values.lighthouseBeacon.external.type }}
   ports:
     - port: {{ .Values.lighthouseBeacon.external.p2p.port }}
       targetPort: p2p-tcp
