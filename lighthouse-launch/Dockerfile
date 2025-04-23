@@ -10,8 +10,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o lighthouse-launch .
 
 # Final stage: use the official Lighthouse base image.
-#FROM sigp/lighthouse:v7.0.0-beta.5
-FROM sigp/lighthouse:latest-unstable
+FROM sigp/lighthouse:v7.0.0
 WORKDIR /app
 # Copy the compiled binary and pre-generated swagger docs.
 COPY --from=builder /app/lighthouse-launch /usr/local/bin/lighthouse-launch

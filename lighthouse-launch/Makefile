@@ -1,5 +1,5 @@
 IMAGE ?= wateim/lighthouse-launch
-TAG ?= latest
+TAG ?= v1.0.0
 
 .PHONY: all docs build push clean
 
