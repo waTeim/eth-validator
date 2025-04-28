@@ -175,6 +175,10 @@ lighthouseValidator:
       cpu: 1
       memory: 2G
 
+  secretsDir:
+    useFlag: false
+    mountPath: "/secrets"
+
   securityContext: {}
     
   storage:

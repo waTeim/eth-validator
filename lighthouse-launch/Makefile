@@ -14,9 +14,18 @@ docs:
 build: docs
 	docker build --platform=linux/amd64 -t $(IMAGE):$(TAG) .
 
+# Build the Docker image (depends on generating swagger docs).
+unstable: docs
+	docker build --build-arg LH_IMAGE=sigp/lighthouse:latest-unstable --platform=linux/amd64 -t $(IMAGE):latest-unstable .
+
 # Push the Docker image.
 push:
 	docker push $(IMAGE):$(TAG)
+
+# Push the Docker image.
+push-all:
+	docker push $(IMAGE):$(TAG)
+	docker push $(IMAGE):latest-unstable
 
 # Clean up the built image.
 clean:

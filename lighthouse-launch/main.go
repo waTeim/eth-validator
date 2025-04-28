@@ -691,7 +691,7 @@ func parseExtraArgs(args []string) (datadir, network, secretsDir string, err err
 		return "", "", "", fmt.Errorf("error parsing extra flags: %w", err)
 	}
 
-	if *dPtr == "" || *nPtr == "" || *sPtr == "" {
+	if *dPtr == "" || *nPtr == "" {
 		return "", "", "", fmt.Errorf("missing required extra flag(s)")
 	}
 

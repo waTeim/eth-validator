@@ -363,7 +363,9 @@ spec:
             - "--network={{ .Values.network }}"
             - "--enable-doppelganger-protection"
             - "--datadir=/data"
-            - "--secrets-dir=/secrets"
+            {{- if .Values.lighthouseValidator.secretsDir.useFlag }}
+            - "--secrets-dir={{ .Values.lighthouseValidator.secretsDir.mountPath }}"
+            {{- end }}
             - "--beacon-nodes={{ $beacon_nodes }}"
             - "--builder-proposals"
             - "--metrics"
@@ -380,7 +382,7 @@ spec:
             - name: data
               mountPath: /data
             - name: pw
-              mountPath: /secrets
+              mountPath: {{ .Values.lighthouseValidator.secretsDir.mountPath }}
               mountPropagation: HostToContainer 
           resources:
             {{- toYaml .Values.lighthouseValidator.resources | nindent 12 }}
