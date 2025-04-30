@@ -994,7 +994,7 @@ func deleteValidatorHandler(lighthouseArgs []string) echo.HandlerFunc {
 	}
 }
 
-// startHandler handles POST /validator.
+// startHandler handles POST /start.
 // It expects the HTTP request to include a form parameter "fee_recipient" (required)
 // and an optional "dry_run" flag. It does not accept a secrets_dir parameter in the payload;
 // instead, the required extra command-line flags --datadir, --network, and --secrets-dir must
@@ -1056,6 +1056,66 @@ func startHandler(lighthouseArgs []string) echo.HandlerFunc {
 			return c.String(http.StatusInternalServerError, fmt.Sprintf("Error launching Lighthouse validator: %v", err))
 		}
 		return c.String(http.StatusOK, "Lighthouse validator launched successfully")
+	}
+}
+
+// unlockHandler handles POST /unlock.
+// It deletes the voting-keystore.json.lock file for a specific validator (if “name” is provided),
+// or all such lock files recursively (if no name).
+//
+// @Summary Unlock validator keystores
+// @Description Deletes the voting-keystore.json.lock file for a given validator or for all validators if no name is provided.
+// @Tags Exec
+// @Accept application/x-www-form-urlencoded
+// @Produce plain
+// @Param name formData string false "Validator name (optional)"
+// @Success 200 {string} string "Lock file(s) deleted"
+// @Failure 400 {string} string "Missing required flags"
+// @Failure 404 {string} string "Lock file not found"
+// @Failure 500 {string} string "Internal server error"
+// @Router /unlock [post]
+func unlockHandler(lighthouseArgs []string) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		// Parse required flags (--datadir and --network)
+		datadir, network, _, err := parseExtraArgs(lighthouseArgs)
+		if err != nil {
+			return c.String(http.StatusBadRequest, fmt.Sprintf("Error parsing extra flags: %v", err))
+		}
+
+		baseDir := filepath.Join(datadir, network, "validators")
+		name := c.FormValue("name")
+
+		if name != "" {
+			// Delete single lock file
+			lockPath := filepath.Join(baseDir, name, "voting-keystore.json.lock")
+			if _, err := os.Stat(lockPath); os.IsNotExist(err) {
+				return c.String(http.StatusNotFound, "Lock file not found")
+			} else if err != nil {
+				return c.String(http.StatusInternalServerError, fmt.Sprintf("Error checking lock file: %v", err))
+			}
+			if err := os.Remove(lockPath); err != nil {
+				return c.String(http.StatusInternalServerError, fmt.Sprintf("Error deleting lock file: %v", err))
+			}
+			return c.String(http.StatusOK, "Lock file deleted")
+		}
+
+		// No name given: delete all lock files (if any), but 200 even if none exist
+		err = filepath.Walk(baseDir, func(path string, info os.FileInfo, walkErr error) error {
+			if walkErr != nil {
+				// skip paths we can't read
+				return nil
+			}
+			if !info.IsDir() && info.Name() == "voting-keystore.json.lock" {
+				if rmErr := os.Remove(path); rmErr != nil {
+					logger.Warn("Failed to delete lock file", "path", path, "error", rmErr)
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return c.String(http.StatusInternalServerError, fmt.Sprintf("Error scanning for lock files: %v", err))
+		}
+		return c.String(http.StatusOK, "Lock files deleted (if any)")
 	}
 }
 
@@ -1175,6 +1235,7 @@ func main() {
 	e.PUT("/validator", updateValidatorHandler(lighthouseArgs))
 	e.DELETE("/validator", deleteValidatorHandler(lighthouseArgs))
 	e.POST("/start", startHandler(lighthouseArgs))
+	e.POST("/unlock", unlockHandler(lighthouseArgs))
 	e.GET("/status", statusHandler)
 
 	// Redirect /swagger to /swagger/index.html
