@@ -141,6 +141,7 @@ lighthouseBeacon:
     size: "250G"
   
   targetPeers: 0
+  timeoutMultiplier: 0
 
 
 lighthouseValidator:

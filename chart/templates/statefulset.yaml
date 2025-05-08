@@ -220,6 +220,9 @@ spec:
             {{- end }}
             - "--execution-endpoint={{ $execution_endpoint }}"
             - "--execution-jwt=/etc/jwt.hex"
+            {{- if .Values.lighthouseBeacon.timeoutMultiplier }}
+            - "--execution-timeout-multiplier={{ .Values.lighthouseBeacon.timeoutMultiplier }}"
+            {{- end }}
             {{- if .Values.externalIp }}
             - "--enr-address={{ .Values.externalIp }}"
             - "--enr-tcp-port={{ .Values.lighthouseBeacon.external.p2p.port }}"
