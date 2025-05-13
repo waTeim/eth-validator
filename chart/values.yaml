@@ -110,7 +110,7 @@ lighthouseBeacon:
   mev:
     enabled: true
     port: 18550
-    relay: null
+    relays: []
     image:
       repository: flashbots/mev-boost
       pullPolicy: IfNotPresent
@@ -135,6 +135,8 @@ lighthouseBeacon:
       memory: 16G
     
   securityContext: {}
+
+  stateCacheSize: 0
 
   storage:
     class: "default"
