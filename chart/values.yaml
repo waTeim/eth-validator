@@ -19,6 +19,8 @@ geth:
 
   cache: 4096
 
+  disableHistory: true
+
   external:
     annotations: {}
     type: LoadBalancer

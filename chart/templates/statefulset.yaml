@@ -71,6 +71,9 @@ spec:
             {{- if .Values.externalIp }}
             - --nat=extip:{{ .Values.externalIp }}
             {{- end }}
+            {{- if .Values.geth.disableHistory }}
+            - --history.logs.disable
+            {{- end }}
             - --port={{ .Values.geth.external.p2p.port }}
             - --http
             - --http.addr=0.0.0.0
