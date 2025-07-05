@@ -58,7 +58,10 @@ spec:
             {{- toYaml .Values.geth.securityContext | nindent 12 }}
           image: "{{ .Values.geth.image.repository }}:{{ .Values.geth.image.tag | default "latest" }}"
           imagePullPolicy: {{ .Values.geth.image.pullPolicy }}
-          command: ["geth"]
+          command:
+            - /sbin/init
+            - --
+            - geth
           args:
             - -{{ .Values.network }}
             - --cache={{ .Values.geth.cache }}
