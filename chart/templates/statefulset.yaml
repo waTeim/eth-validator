@@ -58,10 +58,7 @@ spec:
             {{- toYaml .Values.geth.securityContext | nindent 12 }}
           image: "{{ .Values.geth.image.repository }}:{{ .Values.geth.image.tag | default "latest" }}"
           imagePullPolicy: {{ .Values.geth.image.pullPolicy }}
-          command:
-            - /sbin/init
-            - --
-            - geth
+          command: ["geth"]
           args:
             - -{{ .Values.network }}
             - --cache={{ .Values.geth.cache }}
@@ -130,16 +127,6 @@ spec:
               port: http-api
             initialDelaySeconds: 10
             periodSeconds: 10
-          livenessProbe:
-            exec:
-              command:
-                - sh
-                - -c
-                - "timeout 5s geth attach --exec 'net.peerCount' /data/geth.ipc"
-            initialDelaySeconds: 60
-            periodSeconds: 30
-            timeoutSeconds: 10
-            failureThreshold: 6  # Allow up to 3 minutes of unresponsiveness before killing
       volumes:
         - name: auth-jwt
           secret:
@@ -240,7 +227,7 @@ spec:
             {{- if .Values.lighthouseBeacon.targetPeers }}
             - --target-peers={{ .Values.lighthouseBeacon.targetPeers }}
             {{- end }}
-            {{- if and .Values.lighthouseBeacon.mev.enabled .Values.lighthouseBeacon.mev.relay }}
+            {{- if and .Values.lighthouseBeacon.mev.enabled (not (empty .Values.lighthouseBeacon.mev.relays)) }}
             - --builder=http://localhost:{{ .Values.lighthouseBeacon.mev.port }}
             {{- end }}
             - --listen-address=0.0.0.0
@@ -281,7 +268,7 @@ spec:
               port: http-api
             initialDelaySeconds: 10
             periodSeconds: 10
-        {{- if and .Values.lighthouseBeacon.mev.enabled .Values.lighthouseBeacon.mev.relays }}
+        {{- if and .Values.lighthouseBeacon.mev.enabled (not (empty .Values.lighthouseBeacon.mev.relays)) }}
         - name: mev-boost
           securityContext:
             {{- toYaml .Values.lighthouseBeacon.mev.securityContext | nindent 14 }}

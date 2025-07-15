@@ -181,7 +181,7 @@ lighthouseValidator:
       memory: 2G
 
   secretsDir:
-    useFlag: false
+    useFlag: true
     mountPath: "/secrets"
 
   securityContext: {}
