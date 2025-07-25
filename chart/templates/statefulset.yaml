@@ -238,6 +238,11 @@ spec:
             - --metrics
             - --metrics-address=0.0.0.0
             - --metrics-port={{ .Values.lighthouseBeacon.internal.metrics.port }}
+          env:
+            {{- if .Values.lighthouseBeacon.rayonThreads }}
+              - name: RAYON_NUM_THREADS
+                value: "{{ .Values.lighthouseBeacon.rayonThreads }}"
+            {{- end }}
           ports:
             - name: http-api
               containerPort: {{ .Values.lighthouseBeacon.internal.api.port }}

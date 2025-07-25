@@ -126,6 +126,8 @@ lighthouseBeacon:
   podAnnotations: {}
   podSecurityContext: {}
 
+  rayonThreads: 0
+
   replicaCount: 1
 
   resources:
