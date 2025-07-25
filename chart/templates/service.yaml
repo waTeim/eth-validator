@@ -95,6 +95,10 @@ spec:
       targetPort: p2p-udp
       protocol: UDP
       name: p2p-udp
+    - port: {{ add .Values.lighthouseBeacon.external.p2p.port 1 }}
+      targetPort: p2p-quic
+      protocol: UDP
+      name: p2p-quic
   selector:
     {{- include "eth-validator-lighthouse-beacon.selectorLabels" . | nindent 4 }}
 ---

@@ -19,6 +19,8 @@ geth:
 
   cache: 4096
 
+  disableHistory: true
+
   external:
     annotations: {}
     type: LoadBalancer
@@ -110,7 +112,7 @@ lighthouseBeacon:
   mev:
     enabled: true
     port: 18550
-    relay: null
+    relays: []
     image:
       repository: flashbots/mev-boost
       pullPolicy: IfNotPresent
@@ -124,6 +126,8 @@ lighthouseBeacon:
   podAnnotations: {}
   podSecurityContext: {}
 
+  rayonThreads: 0
+
   replicaCount: 1
 
   resources:
@@ -136,11 +140,14 @@ lighthouseBeacon:
     
   securityContext: {}
 
+  stateCacheSize: 0
+
   storage:
     class: "default"
     size: "250G"
   
   targetPeers: 0
+  timeoutMultiplier: 0
 
 
 lighthouseValidator:
@@ -174,6 +181,10 @@ lighthouseValidator:
     requests:
       cpu: 1
       memory: 2G
+
+  secretsDir:
+    useFlag: true
+    mountPath: "/secrets"
 
   securityContext: {}
     

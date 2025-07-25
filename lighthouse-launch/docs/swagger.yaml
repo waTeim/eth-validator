@@ -154,6 +154,39 @@ paths:
       summary: Get Lighthouse Validator Status
       tags:
       - Status
+  /unlock:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Deletes the voting-keystore.json.lock file for a given validator
+        or for all validators if no name is provided.
+      parameters:
+      - description: Validator name (optional)
+        in: formData
+        name: name
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Lock file(s) deleted
+          schema:
+            type: string
+        "400":
+          description: Missing required flags
+          schema:
+            type: string
+        "404":
+          description: Lock file not found
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Unlock validator keystores
+      tags:
+      - Exec
   /validator:
     delete:
       consumes:

@@ -60,37 +60,40 @@ spec:
           imagePullPolicy: {{ .Values.geth.image.pullPolicy }}
           command: ["geth"]
           args:
-            - "-{{ .Values.network }}"
-            - "--cache={{ .Values.geth.cache }}"
-            - "--datadir=/data"
-            - "--syncmode=snap"
-            - "--db.engine=pebble"
+            - -{{ .Values.network }}
+            - --cache={{ .Values.geth.cache }}
+            - --datadir=/data
+            - --syncmode=snap
+            - --db.engine=pebble
             {{- if .Values.geth.maxPeers }}
-            - "--maxpeers={{ .Values.geth.maxPeers }}"
+            - --maxpeers={{ .Values.geth.maxPeers }}
             {{- end }}
             {{- if .Values.externalIp }}
-            - "--nat=extip:{{ .Values.externalIp }}"
+            - --nat=extip:{{ .Values.externalIp }}
             {{- end }}
-            - "--port={{ .Values.geth.external.p2p.port }}"
-            - "--http"
-            - "--http.addr=0.0.0.0"
-            - "--http.port={{ .Values.geth.internal.api.port }}"
-            - "--http.api=admin,eth,net,web3,txpool"
-            - "--http.vhosts=*"
-            - "--http.corsdomain=*"
-            - "--ws"
-            - "--ws.addr=0.0.0.0"
-            - "--ws.port={{ .Values.geth.internal.api.port }}"
-            - "--ws.api=admin,eth,net,web3,txpool"
-            - "--ws.origins=*"
-            - "--authrpc.jwtsecret=/etc/jwt.hex"
-            - "--authrpc.addr=0.0.0.0"
-            - "--authrpc.port={{ .Values.geth.internal.auth.port }}"
-            - "--authrpc.vhosts=*"
-            - "--metrics"
-            - "--metrics.addr=0.0.0.0"
-            - "--metrics.port={{ .Values.geth.internal.metrics.port }}"
-            - "--config=/config/geth.toml"
+            {{- if .Values.geth.disableHistory }}
+            - --history.logs.disable
+            {{- end }}
+            - --port={{ .Values.geth.external.p2p.port }}
+            - --http
+            - --http.addr=0.0.0.0
+            - --http.port={{ .Values.geth.internal.api.port }}
+            - --http.api=admin,eth,net,web3,txpool
+            - --http.vhosts=*
+            - --http.corsdomain=*
+            - --ws
+            - --ws.addr=0.0.0.0
+            - --ws.port={{ .Values.geth.internal.api.port }}
+            - --ws.api=admin,eth,net,web3,txpool
+            - --ws.origins=*
+            - --authrpc.jwtsecret=/etc/jwt.hex
+            - --authrpc.addr=0.0.0.0
+            - --authrpc.port={{ .Values.geth.internal.auth.port }}
+            - --authrpc.vhosts=*
+            - --metrics
+            - --metrics.addr=0.0.0.0
+            - --metrics.port={{ .Values.geth.internal.metrics.port }}
+            - --config=/config/geth.toml
           ports:
             - name: http-api
               containerPort: {{ .Values.geth.internal.api.port }}
@@ -124,16 +127,6 @@ spec:
               port: http-api
             initialDelaySeconds: 10
             periodSeconds: 10
-          livenessProbe:
-            exec:
-              command:
-                - sh
-                - -c
-                - "timeout 5s geth attach --exec 'net.peerCount' /data/geth.ipc"
-            initialDelaySeconds: 60
-            periodSeconds: 30
-            timeoutSeconds: 10
-            failureThreshold: 6  # Allow up to 3 minutes of unresponsiveness before killing
       volumes:
         - name: auth-jwt
           secret:
@@ -211,34 +204,45 @@ spec:
           imagePullPolicy: {{ .Values.lighthouseBeacon.image.pullPolicy }}
           command: ["lighthouse"]
           args:
-            - "bn"
-            - "--network={{ .Values.network }}"
-            - "--staking"
-            - "--datadir=/data"
+            - bn
+            - --network={{ .Values.network }}
+            - --staking
+            - --datadir=/data
             {{- if .Values.lighthouseBeacon.checkpointSyncUrl }}
-            - "--checkpoint-sync-url={{ .Values.lighthouseBeacon.checkpointSyncUrl }}"
+            - --checkpoint-sync-url={{ .Values.lighthouseBeacon.checkpointSyncUrl }}
             {{- end }}
-            - "--execution-endpoint={{ $execution_endpoint }}"
-            - "--execution-jwt=/etc/jwt.hex"
+            - --execution-endpoint={{ $execution_endpoint }}
+            - --execution-jwt=/etc/jwt.hex
+            {{- if .Values.lighthouseBeacon.timeoutMultiplier }}
+            - --execution-timeout-multiplier={{ .Values.lighthouseBeacon.timeoutMultiplier }}
+            {{- end }}
+            {{- if .Values.lighthouseBeacon.stateCacheSize }}
+            - --state-cache-size={{ .Values.lighthouseBeacon.stateCacheSize }}
+            {{- end }}
             {{- if .Values.externalIp }}
-            - "--enr-address={{ .Values.externalIp }}"
-            - "--enr-tcp-port={{ .Values.lighthouseBeacon.external.p2p.port }}"
-            - "--enr-udp-port={{ .Values.lighthouseBeacon.external.p2p.port }}"
+            - --enr-address={{ .Values.externalIp }}
+            - --enr-tcp-port={{ .Values.lighthouseBeacon.external.p2p.port }}
+            - --enr-udp-port={{ .Values.lighthouseBeacon.external.p2p.port }}
             {{- end }}
             {{- if .Values.lighthouseBeacon.targetPeers }}
-            - "--target-peers={{ .Values.lighthouseBeacon.targetPeers }}"
+            - --target-peers={{ .Values.lighthouseBeacon.targetPeers }}
             {{- end }}
-            {{- if and .Values.lighthouseBeacon.mev.enabled .Values.lighthouseBeacon.mev.relay }}
-            - "--builder=http://localhost:{{ .Values.lighthouseBeacon.mev.port }}"
+            {{- if and .Values.lighthouseBeacon.mev.enabled (not (empty .Values.lighthouseBeacon.mev.relays)) }}
+            - --builder=http://localhost:{{ .Values.lighthouseBeacon.mev.port }}
             {{- end }}
-            - "--listen-address=0.0.0.0"
-            - "--port={{ .Values.lighthouseBeacon.external.p2p.port }}"
-            - "--http"
-            - "--http-address=0.0.0.0"
-            - "--http-port={{ .Values.lighthouseBeacon.internal.api.port }}"
-            - "--metrics"
-            - "--metrics-address=0.0.0.0"
-            - "--metrics-port={{ .Values.lighthouseBeacon.internal.metrics.port }}"
+            - --listen-address=0.0.0.0
+            - --port={{ .Values.lighthouseBeacon.external.p2p.port }}
+            - --http
+            - --http-address=0.0.0.0
+            - --http-port={{ .Values.lighthouseBeacon.internal.api.port }}
+            - --metrics
+            - --metrics-address=0.0.0.0
+            - --metrics-port={{ .Values.lighthouseBeacon.internal.metrics.port }}
+          env:
+            {{- if .Values.lighthouseBeacon.rayonThreads }}
+              - name: RAYON_NUM_THREADS
+                value: "{{ .Values.lighthouseBeacon.rayonThreads }}"
+            {{- end }}
           ports:
             - name: http-api
               containerPort: {{ .Values.lighthouseBeacon.internal.api.port }}
@@ -251,6 +255,9 @@ spec:
               protocol: TCP
             - name: p2p-udp
               containerPort: {{ .Values.lighthouseBeacon.external.p2p.port }}
+              protocol: UDP
+            - name: p2p-quic
+              containerPort: {{ add .Values.lighthouseBeacon.external.p2p.port 1 }}
               protocol: UDP
           volumeMounts:
             - name: data
@@ -266,7 +273,7 @@ spec:
               port: http-api
             initialDelaySeconds: 10
             periodSeconds: 10
-        {{- if and .Values.lighthouseBeacon.mev.enabled .Values.lighthouseBeacon.mev.relay }}
+        {{- if and .Values.lighthouseBeacon.mev.enabled (not (empty .Values.lighthouseBeacon.mev.relays)) }}
         - name: mev-boost
           securityContext:
             {{- toYaml .Values.lighthouseBeacon.mev.securityContext | nindent 14 }}
@@ -274,10 +281,10 @@ spec:
           imagePullPolicy: {{ .Values.lighthouseBeacon.mev.image.pullPolicy }}
           command: ["/app/mev-boost"]
           args:
-            - "--{{ .Values.network }}"
-            - "--addr=localhost:{{ .Values.lighthouseBeacon.mev.port }}"
-            - "--relay-check"
-            - "--relay={{ .Values.lighthouseBeacon.mev.relay }}"
+            - --{{ .Values.network }}
+            - --addr=localhost:{{ .Values.lighthouseBeacon.mev.port }}
+            - --relay-check
+            - --relay={{ join "," .Values.lighthouseBeacon.mev.relays }}
         {{- end }}
       volumes:
         - name: auth-jwt
@@ -354,21 +361,23 @@ spec:
           command: ["lighthouse-launch"]
           args:
             {{- if .Values.lighthouseValidator.loglevel }}
-            - "--loglevel={{ .Values.lighthouseValidator.loglevel }}"
+            - --loglevel={{ .Values.lighthouseValidator.loglevel }}
             {{- end }}
-            - "--port={{ .Values.lighthouseValidator.internal.launch.port }}"
-            - "--pod={{ $beacon_pod }}"
-            - "--"
-            - "vc"
-            - "--network={{ .Values.network }}"
-            - "--enable-doppelganger-protection"
-            - "--datadir=/data"
-            - "--secrets-dir=/secrets"
-            - "--beacon-nodes={{ $beacon_nodes }}"
-            - "--builder-proposals"
-            - "--metrics"
-            - "--metrics-address=0.0.0.0"
-            - "--metrics-port={{ .Values.lighthouseValidator.internal.metrics.port }}"
+            - --port={{ .Values.lighthouseValidator.internal.launch.port }}
+            - --pod={{ $beacon_pod }}
+            - --
+            - vc
+            - --network={{ .Values.network }}
+            - --enable-doppelganger-protection
+            - --datadir=/data
+            {{- if .Values.lighthouseValidator.secretsDir.useFlag }}
+            - --secrets-dir={{ .Values.lighthouseValidator.secretsDir.mountPath }}
+            {{- end }}
+            - --beacon-nodes={{ $beacon_nodes }}
+            - --builder-proposals
+            - --metrics
+            - --metrics-address=0.0.0.0
+            - --metrics-port={{ .Values.lighthouseValidator.internal.metrics.port }}
           ports:
             - name: launch
               containerPort: {{ .Values.lighthouseValidator.internal.launch.port }}
@@ -380,7 +389,7 @@ spec:
             - name: data
               mountPath: /data
             - name: pw
-              mountPath: /secrets
+              mountPath: {{ .Values.lighthouseValidator.secretsDir.mountPath }}
               mountPropagation: HostToContainer 
           resources:
             {{- toYaml .Values.lighthouseValidator.resources | nindent 12 }}
