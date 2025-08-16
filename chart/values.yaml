@@ -84,6 +84,7 @@ ingress:
 
 lighthouseBeacon:
   affinity: {}
+  asyncAPI: true
 
   checkpointSyncUrl: ""
 
@@ -92,6 +93,8 @@ lighthouseBeacon:
     type: LoadBalancer
     p2p:
       port: 31400
+
+  gui: false
 
   image:
     repository: sigp/lighthouse
@@ -161,6 +164,8 @@ lighthouseValidator:
   imagePullSecrets: []
 
   internal:
+    api:
+      port: 5052
     annotations: {}
     type: ClusterIP
     launch:
