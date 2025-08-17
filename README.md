@@ -1,4 +1,4 @@
-# k8ev-kit — Ethereum Validator Toolkit (Kubernetes / Helm)
+# k8ev-kit — Ethereum Validator Toolkit
 
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-1.26%2B-blue)
@@ -8,8 +8,6 @@
 stack on Kubernetes (incl. OpenShift). It combines Helm charts, a Go launcher,
 and small Python helpers to streamline day‑zero setup and day‑two ops.
 
-> This README reflects the **develop** branch layout and integrates the Siren chart.
-
 ---
 
 ## Repository Structure (develop)
@@ -17,8 +15,7 @@ and small Python helpers to streamline day‑zero setup and day‑two ops.
 ```
 k8ev-kit/
 ├─ eth-validator/          # Main validator chart + templates (cluster wiring)
-│  ├─ chart/
-│  └─ ... 
+│  ├─ Chart.yaml  values.yaml  templates/
 ├─ lighthouse-launch/      # Go-based launcher / API for Lighthouse workflows
 │  ├─ Dockerfile  Makefile  main.go  swagger.yaml ...
 ├─ siren/                  # Helm chart for Sigma Prime's Siren (validator dashboard)
