@@ -1,6 +1,6 @@
 apiVersion: v2
 name: eth-validator
-description: A Helm chart for Kubernetes
+description: Deploy an Ethereum validator on Kubernetes
 
 # A chart can be either an 'application' or a 'library' chart.
 #
