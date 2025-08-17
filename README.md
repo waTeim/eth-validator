@@ -1,240 +1,162 @@
-# Eth Validator
+# k8ev-kit — Ethereum Validator Toolkit (Kubernetes / Helm)
 
-Eth Validator is a multi-component project designed to deploy and run an
-Ethereum validator. It comprises a Go-based validator launcher, Helm charts
-for Kubernetes deployment, and Python tools for auxiliary tasks.
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-1.26%2B-blue)
+![Helm](https://img.shields.io/badge/Helm-3.13%2B-blue)
 
-This README documents the project structure with detailed insights into 
-the key files that make up each component.
+`k8ev-kit` is a modular toolkit for deploying and operating an Ethereum validator
+stack on Kubernetes (incl. OpenShift). It combines Helm charts, a Go launcher,
+and small Python helpers to streamline day‑zero setup and day‑two ops.
 
-----------------------------------------
-## Repository Structure
+> This README reflects the **develop** branch layout and integrates the Siren chart.
 
-eth-validator/
-├── chart/                   # Helm chart for Kubernetes deployments  
-│   ├── .helmignore          # Patterns to ignore when packaging the chart  
-│   ├── Chart.yaml           # Chart metadata (version, name, etc.)  
-│   ├── values.yaml          # Default configuration values for the chart  
-│   └── templates/           # Kubernetes resource templates  
-│       ├── NOTES.txt        # Post-install notes  
-│       ├── _helpers.tpl     # Template helper definitions  
-│       ├── configmap.yaml   # ConfigMap resource definition  
-│       ├── hpa.yaml         # Horizontal Pod Autoscaler definition  
-│       ├── ingress.yaml     # Ingress resource definition  
-│       ├── rbac.yaml        # Role-Based Access Control settings  
-│       ├── service.yaml     # Service resource definition  
-│       ├── serviceaccount.yaml  # Service account configuration  
-│       ├── statefulset.yaml     # StatefulSet definition for pods  
-│       └── tests/  
-│           └── test-connection.yaml  # Test resources for connectivity  
-├── lighthouse-launch/       # Go application (validator launcher)  
-│   ├── Dockerfile           # Docker build instructions for containerizing the app  
-│   ├── Makefile             # Build automation and helper commands  
-│   ├── go.mod               # Go module file (dependency definitions)  
-│   ├── go.sum               # Go dependency checksums  
-│   ├── main.go              # Entry-point for the validator application  
-│   └── docs/                # Documentation (Swagger specs, etc.)  
-│       ├── docs.go  
-│       ├── swagger.json  
-│       └── swagger.yaml  
-└── tools/                   # Ancillary Python tooling scripts  
-    └── create_jwt.py        # Script to generate JWT tokens for authentication  
+---
 
-----------------------------------------
-## Detailed Components
+## Repository Structure (develop)
 
-### 1. Helm Chart
+```
+k8ev-kit/
+├─ eth-validator/          # Main validator chart + templates (cluster wiring)
+│  ├─ chart/
+│  └─ ... 
+├─ lighthouse-launch/      # Go-based launcher / API for Lighthouse workflows
+│  ├─ Dockerfile  Makefile  main.go  swagger.yaml ...
+├─ siren/                  # Helm chart for Sigma Prime's Siren (validator dashboard)
+│  ├─ Chart.yaml  values.yaml  templates/
+├─ tools/                  # Small Python helpers
+│  ├─ genpw.py             # password generator (stdout; length, charset options)
+│  └─ create_secret.py     # kubernetes Secret helper (stdin/file → Secret)
+└─ README.md
+```
 
-#### chart/values.yaml
+### Why this split?
+- **eth-validator/**: cluster plumbing and common patterns
+- **lighthouse-launch/**: optional API/front‑end to manage Lighthouse validators
+- **siren/**: first‑class chart to deploy the Siren dashboard alongside your stack
+- **tools/**: thin, scriptable helpers you can use locally or in CI
 
-The `values.yaml` file provides default configuration values for the Helm chart.
-These settings control resource allocation, environment variables, and other 
-deployment parameters for the Eth Validator in Kubernetes.
+---
 
-Below is an excerpt from chart/values.yaml:
+## Quick Start
 
---------------------------------------------------
-# Default values for eth-validator.
-replicaCount: 1
+> Assumes a working `kubectl` context and a default StorageClass. Replace the
+> namespace if you don’t use `eth-validator`.
 
+```bash
+# 1) Clone
+git clone https://github.com/waTeim/k8ev-kit.git
+cd k8ev-kit
+
+# 2) Create namespace (once)
+kubectl create namespace eth-validator
+```
+
+### Deploy Siren (dashboard)
+
+Siren shows validator status/metrics. The chart expects two K8s secrets:
+
+- **API token** secret → provides `API_TOKEN` (key must be `apitoken`)
+- **Session password** secret → provides `SESSION_PASSWORD` (key must be `password`)
+
+You can create these with any tool; here are **generic patterns** using the helpers:
+
+```bash
+# A) Generate a strong session password and store it as Secret key `password`
+python tools/genpw.py -l 24   | python tools/create_secret.py -n eth-validator -s siren-session --key password
+
+# B) Extract Lighthouse validator API token from the running validator pod
+#    (path may vary; see your client docs). Example generic pattern:
+kubectl -n eth-validator exec deploy/lighthouse-validator --   sh -lc 'cat "$HOME/.lighthouse/validators/api-token.txt"'   | python tools/create_secret.py -n eth-validator -s siren-api --key apitoken
+```
+
+> **Why `create_secret.py` matters:** it lets you pipe values from `kubectl exec`
+> directly into a K8s Secret with the correct key names, which matches Siren’s
+> environment mapping. This is convenient when following Siren’s own token
+> extraction instructions from within Kubernetes.
+
+Now prepare a minimal values file for Siren:
+
+```bash
+mkdir -p values
+cat > values/siren.yaml <<'YAML'
 image:
-  repository: yourrepo/eth-validator
-  tag: "latest"
-  pullPolicy: IfNotPresent
+  repository: sigp/siren
+  tag: "v3.0.4"   # pin a tested version
 
 service:
   type: ClusterIP
-  port: 80
+  port: 3000
 
-resources:
-  limits:
-    cpu: 500m
-    memory: 512Mi
-  requests:
-    cpu: 250m
-    memory: 256Mi
+config:
+  beaconUrl: "http://<beacon-service>:<port>"       # -> BEACON_URL
+  validatorUrl: "http://<validator-service>:<port>" # -> VALIDATOR_URL
+  debug: false
+  apiTokenSecretName: "siren-api"       # Secret with key: apitoken
+  passwordSecretName: "siren-session"   # Secret with key: password
+YAML
+```
 
-nodeSelector: {}
+Install Siren:
+```bash
+helm upgrade --install siren ./siren -n eth-validator -f values/siren.yaml
+kubectl -n eth-validator rollout status deploy/siren
+kubectl -n eth-validator port-forward svc/siren 3000:3000
+# open http://localhost:3000
+```
 
-tolerations: []
+### Deploy the validator stack
 
-affinity: {}
---------------------------------------------------
+This repo provides patterns for the broader stack under `eth-validator/` and
+an optional API under `lighthouse-launch/`. Bring your preferred EL/CL/VC and
+wire them up using your own values files.
 
-This excerpt shows settings for replicas, image configuration, service details, 
-and resource limits. Modify these values as needed for your deployment environment.
+---
 
-#### Helm Templates
+## Ops & Troubleshooting
 
-The chart/templates/ directory contains Kubernetes resource templates used to
-deploy the Eth Validator. Each template uses helper functions defined in _helpers.tpl.
+```bash
+# Check pods
+kubectl -n eth-validator get pods
 
-- configmap.yaml  
-  Defines a ConfigMap that holds configuration data consumed by the validator.
+# Tail Siren logs
+kubectl -n eth-validator logs deploy/siren -f
 
-- rbac.yaml  
-  Sets up RBAC (Role-Based Access Control) policies for secure deployment.
+# Helm history + rollback
+helm -n eth-validator history siren
+helm -n eth-validator rollback siren <REVISION>
+```
 
-- service.yaml and serviceaccount.yaml  
-  Define the Kubernetes Service and associated service account for the application.
+Common gotchas:
+- Secret keys must match **exactly**: `apitoken` for the API token, `password` for the session password.
+- `beaconUrl` / `validatorUrl` must be reachable from the Siren pod (ClusterIP DNS is typical).
+- If exposing Siren, set up `ingress.enabled: true` and supply host/TLS in your values file.
 
-- statefulset.yaml  
-  Deploys the validator as a StatefulSet to maintain stable network identities.
+---
 
-Review these files in the chart/templates/ directory to tailor them to your 
-infrastructure needs.
+## Using the helpers generically
 
-----------------------------------------
-### 2. Lighthouse Launch (Go Application)
+These helpers are intentionally generic so they can live either under this repo’s
+`tools/` **or** be copied into a future `kubernetes/` subdirectory of the upstream
+Siren project.
 
-#### Overview:
+- `genpw.py`: prints a strong password to stdout (e.g., `-l 24` to set length). Pipe into whatever needs it.
+- `create_secret.py`: reads from **stdin** (or a file), creates/updates a Secret with a chosen name and key.
+  - Suggested flags: `--namespace/-n`, `--secretname/-s`, `--key <key>`
+  - Example: `echo foo | create_secret.py -n ns -s my-secret --key somekey`
 
-The Lighthouse Launcher API is a Go-based RESTful service designed for managing and launching Lighthouse validators. It primarily handles validator keystores that conform to the EIP-2335 specification, while also interfacing with Kubernetes to monitor the readiness of consensus nodes (via pod or service endpoint watches). The server exposes endpoints for validator creation, update, deletion, retrieval, and launching the Lighthouse validator process, along with health and status checks.
+> If your local copy uses slightly different flags, adapt accordingly. The idea is
+> the same: stream a value directly into the Secret key that downstream charts expect.
 
-#### Key Features:
+---
 
-• **Validator Keystore Management**
-  - Supports creation, update, deletion, and retrieval of validator keystores.
-  - Validates keystore JSON data against the EIP-2335 schema.
-  - Stores keystore files under a structured directory hierarchy based on the datadir and network parameters.
+## Roadmap
 
-• **Lighthouse Validator Launcher**
-  - Launches the Lighthouse validator in validator mode using exec.Command.
-  - Automatically adds flags (e.g. --init-slashing-protection, --suggested-fee-recipient) based on file presence and request parameters.
-  - Captures and logs process output (stdout/stderr) concurrently.
-  - Monitors for early termination and updates validator status accordingly.
+- Add example values for Geth + Lighthouse
+- Optional ServiceMonitor / Grafana dashboards
+- OpenShift‑friendly presets (SCC / SecurityContext profiles)
 
-• **Kubernetes Integration for Consensus Readiness**
-  - Provides functions to watch a specific pod or service endpoints in a Kubernetes cluster.
-  - Monitors readiness by checking the PodReady condition or endpoint availability.
-  - Updates a global readiness flag which is used by the health endpoints.
+---
 
-• **Health, Status, and Swagger Documentation Endpoints**
-  - **Health Endpoints:** `/healthz` (liveness) always returns “alive”; `/readyz` (readiness) returns “ready” only when the consensus client is confirmed ready.
-  - **Status Endpoint:** `/status` returns the current state of the validator process (running, stopped, or errored).
-  - **Swagger Documentation:** `/swagger` endpoints serve interactive API documentation to assist with client integration.
-
-• **Command-Line Configuration**
-  - Uses standard command-line flags for HTTP server configuration (address, port, loglevel).
-  - Accepts extra flags (such as `--datadir`, `--network`, and `--secrets-dir`) to customize paths for validator data and secrets.
-  - Determines logging level through command-line flags, environment variables, or defaults to “info”.
-
-#### Project Structure:
-
-• **Main Package:** 
-  - Contains the entry point (`main` function) that initializes logging, parses flags, and starts the HTTP server.
-  - Launches a goroutine to monitor consensus readiness using either pod or service endpoint watches.
-
-• **API Handlers:** 
-  - Implements endpoints for validator CRUD operations (`/validator` for GET, POST, PUT, DELETE).
-  - Provides the `/start` endpoint to trigger the Lighthouse validator process with an optional fee recipient.
-  - Includes dedicated handlers for status, readiness, and liveness checks.
-
-• **Utility and Helper Functions:**
-  - Functions for flag parsing, keystore validation, and file operations (writing and deleting keystore files).
-  - Custom logging handlers for consistent output using Go’s slog package.
-
-#### Dependencies:
-
-• Echo Web Framework: Simplifies HTTP routing, middleware integration (logging and recovery), and request/response handling.
-• Kubernetes Client-Go: Enables in-cluster configuration and resource watching for readiness monitoring.
-• Swaggo: Generates Swagger-based API documentation.
-• Standard Go Libraries: Used for JSON encoding/decoding, command execution, file I/O, context management, and logging.
-
-#### Usage:
-
-1. Build the application with Go.
-2. Start the server with required flags such as:
-   - `-address` and `-port` for server binding.
-   - `-loglevel` to control logging verbosity.
-   - Additional flags (`--datadir`, `--network`, `--secrets-dir`) passed after a “--” separator for validator-specific configurations.
-3. Interact with the API endpoints:
-   - Use `/validator` for managing keystores.
-   - Call `/start` to launch the Lighthouse validator.
-   - Monitor `/status`, `/readyz`, and `/healthz` for process health.
-   - Access `/swagger` for interactive API documentation.
-
-### 3. Python Tools
-
-#### tools/create_jwt.py
-
-This Python script generates JWT tokens for authenticating requests to the validator API.
-It accepts a secret key and an optional expiration time.
-
-## Installation & Usage Instructions
-
-### Deploying with Helm
-
-1. Edit chart/values.yaml to set your repository, tag, and resource preferences.
-2. Deploy with Helm:
-
-   cd eth-validator/chart  
-   helm install eth-validator .
-
-### Building and Running the Go Application
-
-#### Using Docker
-
-1. Build the Docker image:
-
-   cd eth-validator/lighthouse-launch  
-   docker build -t lighthouse-launch .
-
-2. Run the container:
-
-   docker run -d -p 8080:8080 lighthouse-launch
-
-#### Native Build
-
-1. Build locally (requires Go installed):
-
-   cd eth-validator/lighthouse-launch  
-   make build
-
-2. Run the binary:
-
-   ./lighthouse-launch --config <your-config-file>
-
-### Using Python Tools
-
-To generate a JWT token, run the following:
-
-   python eth-validator/tools/create_jwt.py --secret your_super_secret_key
-
-----------------------------------------
-## Contributing
-
-Contributions are welcome! To contribute:
-
-1. Fork the repository.
-2. Create a new branch for your feature or bug fix:
-
-   git checkout -b feature/your-feature-name
-
-3. Commit your changes and push them.
-4. Open a pull request describing your changes.
-
-----------------------------------------
 ## License
 
-This project is licensed under the MIT License. See the LICENSE file for full details.
+MIT © waTeim
