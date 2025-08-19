@@ -59,11 +59,11 @@ You can create these with any tool; here are **generic patterns** using the help
 
 ```bash
 # A) Generate a strong session password and store it as Secret key `password`
-python tools/genpw.py -l 24   | python tools/create_secret.py -n eth-validator -s siren-session --key password
+python tools/genpw.py -l 24 -s siren-session
 
 # B) Extract Lighthouse validator API token from the running validator pod
 #    (path may vary; see your client docs). Example generic pattern:
-kubectl -n eth-validator exec deploy/lighthouse-validator --   sh -lc 'cat "$HOME/.lighthouse/validators/api-token.txt"'   | python tools/create_secret.py -n eth-validator -s siren-api --key apitoken
+kubectl exec <validator-pod> -- sh -lc 'cat "$HOME/.lighthouse/validators/api-token.txt"'   | python tools/create_secret.py -s siren-api --key apitoken
 ```
 
 > **Why `create_secret.py` matters:** it lets you pipe values from `kubectl exec`
@@ -76,14 +76,6 @@ Now prepare a minimal values file for Siren:
 ```bash
 mkdir -p values
 cat > values/siren.yaml <<'YAML'
-image:
-  repository: sigp/siren
-  tag: "v3.0.4"   # pin a tested version
-
-service:
-  type: ClusterIP
-  port: 3000
-
 config:
   beaconUrl: "http://<beacon-service>:<port>"       # -> BEACON_URL
   validatorUrl: "http://<validator-service>:<port>" # -> VALIDATOR_URL
@@ -95,9 +87,9 @@ YAML
 
 Install Siren:
 ```bash
-helm upgrade --install siren ./siren -n eth-validator -f values/siren.yaml
-kubectl -n eth-validator rollout status deploy/siren
-kubectl -n eth-validator port-forward svc/siren 3000:3000
+helm install siren -f values/siren.yaml ./siren
+kubectl rollout status deploy/siren
+kubectl port-forward svc/siren 3000:3000
 # open http://localhost:3000
 ```
 
@@ -113,10 +105,10 @@ wire them up using your own values files.
 
 ```bash
 # Check pods
-kubectl -n eth-validator get pods
+kubectl get pods
 
 # Tail Siren logs
-kubectl -n eth-validator logs deploy/siren -f
+kubectl logs <siren-pod> -f
 
 # Helm history + rollback
 helm -n eth-validator history siren

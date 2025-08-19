@@ -1,6 +1,19 @@
 apiVersion: v2
 name: eth-validator
 description: Deploy an Ethereum validator on Kubernetes
+annotations:
+  artifacthub.io/displayName: "Ethereum Validator Stack (Kubernetes)"
+  artifacthub.io/license: MIT
+  artifacthub.io/keywords: |
+    - ethereum
+    - validator
+    - kubernetes
+    - helm
+    - lighthouse
+    - geth
+  artifacthub.io/links: |
+    - name: Source
+      url: https://github.com/waTeim/k8ev-kit/eth-validator
 
 # A chart can be either an 'application' or a 'library' chart.
 #

@@ -52,6 +52,50 @@ config:
   passwordSecretName: "siren-session"
 ```
 
+## Ingress (optional)
+
+If you want a public URL for the UI, enable the chart’s Ingress and set your domain.
+You **must** replace `\<your-domain.example.com\>` and adjust the controller class/annotations for your cluster.
+
+```yaml
+ingress:
+  enabled: true
+
+  # Prefer spec.ingressClassName when supported by your controller.
+  # Example values: "nginx", "traefik", "haproxy".
+  className: nginx
+
+  # Add any controller-specific annotations here.
+  annotations:
+    # If using cert-manager with a ClusterIssuer:
+    cert-manager.io/cluster-issuer: "letsencrypt"
+    # Some clusters still require the legacy class annotation:
+    kubernetes.io/ingress.class: "nginx"
+
+  hosts:
+    - host: <your-domain.example.com>
+      paths:
+        - path: /
+          pathType: Prefix
+
+  tls:
+    - secretName: <your-domain.example.com>-tls
+      hosts:
+        - <your-domain.example.com>
+```
+
+### Notes
+- Create an **A/AAAA** record for `<your-domain.example.com>` pointing to your Ingress controller’s external IP/hostname.
+- If you use a **namespaced Issuer** (not a ClusterIssuer), replace the annotation with: `cert-manager.io/issuer: "<issuer-name>"`.
+- Some controllers ignore `kubernetes.io/ingress.class` and only use `spec.ingressClassName` (`className` above). Keep whichever your cluster needs.
+- For multiple domains, add additional entries under `ingress.hosts` and `ingress.tls`.
+- If your app is served under a subpath, ensure your controller is configured for path rewrite/strip as needed.
+
+### Verify
+```bash
+kubectl -n <namespace> get ingress
+kubectl -n <namespace> describe ingress <release-name>
+
 ## Values
 {{ template "chart.valuesSection" . }}
 
