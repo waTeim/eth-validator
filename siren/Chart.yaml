@@ -1,6 +1,21 @@
 apiVersion: v2
 name: siren
 description: Deploy Siren on Kubernetes
+annotations:
+  artifacthub.io/displayName: "Siren (Dashboard) for Ethereum Validators"
+  artifacthub.io/license: MIT
+  artifacthub.io/keywords: |
+    - ethereum
+    - validator
+    - kubernetes
+    - helm
+    - siren
+    - lighthouse
+  artifacthub.io/links: |
+    - name: Source
+      url: https://github.com/waTeim/k8ev-kit/siren
+    - name: Upstream (Siren)
+      url: https://github.com/sigp/siren
 
 # A chart can be either an 'application' or a 'library' chart.
 #

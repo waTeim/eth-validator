@@ -1,0 +1,19 @@
+# {{ template "chart.name" . }}
+
+{{ template "chart.description" . }}
+
+## Purpose
+Cluster wiring for an Ethereum validator stack (execution client, consensus
+client, validator client). Provides opinionated templates and values structure
+to keep your stack consistent across environments.
+
+## Install (from local checkout)
+```bash
+helm install <network> -f <network>.yaml ./eth-validator
+```
+
+## Guidance
+- Combine with the `siren/` chart to get a dashboard for validator status.
+
+## Values
+{{ template "chart.valuesSection" . }}
