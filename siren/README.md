@@ -38,12 +38,6 @@ helm upgrade --install siren k8ev/siren -n eth-validator -f values.yaml
 
 ## Minimal values example
 ```yaml
-image:
-  repository: sigp/siren
-  tag: "v3.0.4"
-service:
-  type: ClusterIP
-  port: 3000
 config:
   beaconUrl: "http://<beacon-service>:<port>"
   validatorUrl: "http://<validator-service>:<port>"
