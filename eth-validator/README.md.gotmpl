@@ -1,18 +1,99 @@
-# {{ template "chart.name" . }}
+{{ template "chart.header" . }}
 
 {{ template "chart.description" . }}
 
-## Purpose
-Cluster wiring for an Ethereum validator stack (execution client, consensus
-client, validator client). Provides opinionated templates and values structure
-to keep your stack consistent across environments.
-
-## Install (from local checkout)
+## TL;DR
 ```bash
-helm install <network> -f <network>.yaml ./eth-validator
+helm upgrade --install {{ template "chart.name" . }} ./{{ template "chart.name" . }} -n eth-validator -f values.yaml
 ```
 
-## Guidance
-- Combine with the `siren/` chart to get a dashboard for validator status.
+## Prerequisites
+- Kubernetes >= 1.27
+- A default `StorageClass`
+- (Optional) A LoadBalancer solution (e.g., MetalLB or cloud LB) if exposing services externally
+
+## Example values (annotated, abridged)
+
+> Use this as a starting point. Anything in `<angle-brackets>` must be customized.
+> See the full example at: `docs/examples/eth-validator-values-example.yaml`
+
+```yaml
+geth:
+  image:
+    repository: ethereum/client-go
+    tag: "v1.16.2"
+    pullPolicy: IfNotPresent
+  resources:
+    requests: { cpu: 3, memory: 12Gi }
+    limits:   { cpu: 3, memory: 12Gi }
+  cache: 8192
+  maxPeers: 40
+  nodeSelector:
+    kubernetes.io/hostname: "<node-for-geth>"
+  storage:
+    class: "<storage-class>"
+    size: 100Gi
+  external:
+    enabled: true
+    type: LoadBalancer
+    port: 30503
+    annotations:
+      metallb.universe.tf/loadBalancerIPs: "<lb-ip-for-geth>"
+
+lighthouseBeacon:
+  image:
+    repository: sigp/lighthouse
+    tag: "v7.1.0"
+    pullPolicy: IfNotPresent
+  checkpointSyncUrl: "https://<checkpoint-endpoint>/"
+  gui: true
+  targetPeers: 60
+  timeoutMultiplier: 3
+  nodeSelector:
+    kubernetes.io/hostname: "<node-for-beacon>"
+  resources:
+    requests: { cpu: 4, memory: 16Gi }
+    limits:   { cpu: 4, memory: 16Gi }
+  storage:
+    class: "<storage-class>"
+    size: 100Gi
+  external:
+    enabled: true
+    type: LoadBalancer
+    port: 31600
+    annotations:
+      metallb.universe.tf/loadBalancerIPs: "<lb-ip-for-beacon>"
+  mev:
+    enabled: true
+    image: { repository: flashbots/mev-boost, tag: "1.9", pullPolicy: Always }
+    relays:
+      - "https://<relay-pubkey>@<relay-host>"
+
+lighthouseValidator:
+  image:
+    repository: sigp/lighthouse
+    tag: "v1.2.0"
+    pullPolicy: Always
+  loglevel: "debug"
+  nodeSelector:
+    kubernetes.io/hostname: "<node-for-validator>"
+  storage:
+    class: "<storage-class>"
+```
+
+### Where you'll customize
+
+- **Network bootstrap** — `lighthouseBeacon.checkpointSyncUrl` must match your network (e.g., hoodi uses `https://hoodi.beaconstate.ethstaker.cc/`).
+- **Relays** — `lighthouseBeacon.mev.relays` must be valid for your network/policy.
+- **Exposure** — `*.external.*` (LoadBalancer ports, annotations, and IPs) depend on whether you use MetalLB, a cloud LB, or keep services internal.
+- **Placement** — `nodeSelector` targets; pick nodes with the right CPU/disk (EL on fastest disk).
+- **Storage** — `storage.class` and `size`. For local dev: `local-path`. On cloud: `gp3`, `pd-ssd`, etc.
+- **Resources** — `requests/limits` should match your cluster capacity and performance goals.
+- **Versions** — keep `image.tag` pinned; upgrade deliberately and roll back with Helm history if needed.
+- **Optional fields** — `externalIp` is provided for charts that consume it; remove if unused.
 
 {{ template "chart.valuesSection" . }}
+
+## Notes
+- This chart does **not** set defaults for external service URLs or network endpoints; provide them in your values.
+- Secrets (fee recipient, graffiti, keystores, JWT, etc.) are chart-specific; see the chart values for the exact keys.
