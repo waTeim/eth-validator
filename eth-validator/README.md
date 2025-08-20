@@ -16,7 +16,6 @@ helm install <network> -f <network>.yaml ./eth-validator
 - Combine with the `siren/` chart to get a dashboard for validator status.
 
 ## Values
-## Values
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
