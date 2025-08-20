@@ -4,7 +4,7 @@
 
 ## TL;DR
 ```bash
-helm upgrade --install {{ template "chart.name" . }} ./{{ template "chart.name" . }} -n eth-validator -f values.yaml
+helm install <network-name> -f values.yaml ./{{ template "chart.name" . }}
 ```
 
 ## Prerequisites

@@ -4,7 +4,7 @@ Deploy an Ethereum validator on Kubernetes
 
 ## TL;DR
 ```bash
-helm upgrade --install eth-validator ./eth-validator -n eth-validator -f values.yaml
+helm install <network-name> -f values.yaml ./eth-validator
 ```
 
 ## Prerequisites
