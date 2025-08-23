@@ -1,6 +1,9 @@
 apiVersion: v2
 name: eth-validator
 description: Deploy an Ethereum validator on Kubernetes
+home: https://github.com/waTeim/k8ev-kit/tree/master/eth-validator
+sources:
+  - https://github.com/waTeim/k8ev-kit/tree/master/eth-validator
 annotations:
   artifacthub.io/displayName: "Ethereum Validator Stack (Kubernetes)"
   artifacthub.io/license: MIT
@@ -11,9 +14,12 @@ annotations:
     - helm
     - lighthouse
     - geth
+    - mev-boost
   artifacthub.io/links: |
-    - name: Source
-      url: https://github.com/waTeim/k8ev-kit/eth-validator
+    - name: Chart source
+      url: https://github.com/waTeim/k8ev-kit/tree/master/eth-validator
+    - name: Project homepage
+      url: https://github.com/waTeim/k8ev-kit
 
 # A chart can be either an 'application' or a 'library' chart.
 #
@@ -28,7 +34,7 @@ type: application
 # This is the chart version. This version number should be incremented each time you make changes
 # to the chart and its templates, including the app version.
 # Versions are expected to follow Semantic Versioning (https://semver.org/)
-version: 1.4.4
+version: 1.4.5
 
 # This is the version number of the application being deployed. This version number should be
 # incremented each time you make changes to the application. Versions are not expected to

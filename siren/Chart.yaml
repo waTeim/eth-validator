@@ -1,6 +1,10 @@
 apiVersion: v2
 name: siren
 description: Deploy Siren on Kubernetes
+home: https://github.com/waTeim/k8ev-kit/tree/master/siren
+sources:
+  - https://github.com/waTeim/k8ev-kit/tree/master/siren
+  - https://github.com/sigp/siren
 annotations:
   artifacthub.io/displayName: "Siren (Dashboard) for Ethereum Validators"
   artifacthub.io/license: MIT
@@ -12,8 +16,8 @@ annotations:
     - siren
     - lighthouse
   artifacthub.io/links: |
-    - name: Source
-      url: https://github.com/waTeim/k8ev-kit/siren
+    - name: Chart source
+      url: https://github.com/waTeim/k8ev-kit/tree/master/charts/siren
     - name: Upstream (Siren)
       url: https://github.com/sigp/siren
 
@@ -30,7 +34,7 @@ type: application
 # This is the chart version. This version number should be incremented each time you make changes
 # to the chart and its templates, including the app version.
 # Versions are expected to follow Semantic Versioning (https://semver.org/)
-version: 1.0.0
+version: 1.0.1
 
 # This is the version number of the application being deployed. This version number should be
 # incremented each time you make changes to the application. Versions are not expected to
