@@ -17,7 +17,7 @@ env:
   HELM_REPO_OWNER: waTeim
   HELM_REPO_NAME: helm-charts
   HELM_BASE_URL: https://wateim.github.io/helm-charts
-  PUBLISH_BRANCH: gh-pages
+  PUBLISH_BRANCH: main
   CHART_DIRS: "siren eth-validator"
 
 jobs:
