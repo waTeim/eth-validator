@@ -1,9 +1,10 @@
-name: Package & Publish Helm Charts on develop→master merge
+ame: Package & Publish Helm Charts on develop→master merge
 
 on:
   pull_request_target:
     types: [closed]
     branches: [ master ]
+  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -22,16 +23,18 @@ env:
 jobs:
   publish:
     if: >
-      github.event.pull_request.merged == true &&
-      github.event.pull_request.base.ref == 'master' &&
-      github.event.pull_request.head.ref == 'develop'
+      (github.event_name == 'pull_request_target' &&
+       github.event.pull_request.merged == true &&
+       github.event.pull_request.base.ref == 'master' &&
+       github.event.pull_request.head.ref == 'develop')
+      || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out source at merge commit
+      - name: Check out source at merge commit (or master on manual run)
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          ref: ${{ github.event.pull_request.merge_commit_sha || 'master' }}
 
       - name: Set up Helm
         uses: azure/setup-helm@v4
@@ -110,7 +113,9 @@ jobs:
             git checkout "${PUBLISH_BRANCH}"
           else
             git checkout --orphan "${PUBLISH_BRANCH}"
-            rm -rf .
+            # Clean working tree without deleting .git
+            git rm -rf . >/dev/null 2>&1 || true
+            find . -mindepth 1 -maxdepth 1 ! -name ".git" -exec rm -rf {} +
           fi
 
       - name: Copy packages and rebuild index
@@ -124,14 +129,16 @@ jobs:
             helm repo index publish --url "${HELM_BASE_URL}"
           fi
 
+      - name: Configure git identity
+        if: steps.decide.outputs.count != '0'
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@users.noreply.github.com"
+
       - name: Commit & push to gh-pages
         if: steps.decide.outputs.count != '0'
         env:
           TOKEN: ${{ secrets.HELM_REPO_TOKEN }}
-          GIT_AUTHOR_NAME: github-actions
-          GIT_AUTHOR_EMAIL: actions@users.noreply.github.com
-          GIT_COMMITTER_NAME: github-actions
-          GIT_COMMITTER_EMAIL: actions@users.noreply.github.com
         run: |
           set -euo pipefail
           cd publish
