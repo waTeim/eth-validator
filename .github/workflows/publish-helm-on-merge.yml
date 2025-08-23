@@ -1,4 +1,4 @@
-ame: Package & Publish Helm Charts on develop→master merge
+name: Package & Publish Helm Charts on develop→master merge
 
 on:
   pull_request_target:
