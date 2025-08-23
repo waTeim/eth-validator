@@ -107,7 +107,7 @@ jobs:
           git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/${HELM_REPO_OWNER}/${HELM_REPO_NAME}.git" publish
           cd publish
           if git rev-parse --verify "${PUBLISH_BRANCH}" >/dev/null 2>&1; then
-            git checkout "${PUBLISH_BRANCH}")
+            git checkout "${PUBLISH_BRANCH}"
           else
             git checkout --orphan "${PUBLISH_BRANCH}"
             rm -rf .
