@@ -1,6 +1,6 @@
 # k8ev-kit — Ethereum Validator Toolkit
 
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-1.26%2B-blue)
 ![Helm](https://img.shields.io/badge/Helm-3.13%2B-blue)
 
@@ -71,18 +71,17 @@ kubectl exec <validator-pod> -- sh -lc 'cat "$HOME/.lighthouse/validators/api-to
 > environment mapping. This is convenient when following Siren’s own token
 > extraction instructions from within Kubernetes.
 
-Now prepare a minimal values file for Siren:
+Now, prepare a minimal values file for Siren:
 
 ```bash
 mkdir -p values
-cat > values/siren.yaml <<'YAML'
+cat > values/siren.yaml
 config:
   beaconUrl: "http://<beacon-service>:<port>"       # -> BEACON_URL
   validatorUrl: "http://<validator-service>:<port>" # -> VALIDATOR_URL
   debug: false
   apiTokenSecretName: "siren-api"       # Secret with key: apitoken
   passwordSecretName: "siren-session"   # Secret with key: password
-YAML
 ```
 
 Install Siren:
@@ -143,9 +142,3 @@ Siren project.
 - Add example values for Geth + Lighthouse
 - Optional ServiceMonitor / Grafana dashboards
 - OpenShift‑friendly presets (SCC / SecurityContext profiles)
-
----
-
-## License
-
-MIT © waTeim
