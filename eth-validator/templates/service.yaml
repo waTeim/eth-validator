@@ -119,6 +119,10 @@ spec:
       targetPort: launch
       protocol: TCP
       name: launch
+    - port: {{ .Values.lighthouseValidator.internal.api.port }}
+      targetPort: api
+      protocol: TCP
+      name: api
     - port: {{ .Values.lighthouseValidator.internal.metrics.port }}
       targetPort: metrics
       protocol: TCP

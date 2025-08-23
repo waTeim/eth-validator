@@ -235,6 +235,12 @@ spec:
             - --http
             - --http-address=0.0.0.0
             - --http-port={{ .Values.lighthouseBeacon.internal.api.port }}
+            {{- if .Values.lighthouseBeacon.gui }}
+            - --gui
+            {{- end }}
+            {{- if not .Values.lighthouseBeacon.asyncApi }}
+            - --http-enable-beacon-processor=false
+            {{- end }}
             - --metrics
             - --metrics-address=0.0.0.0
             - --metrics-port={{ .Values.lighthouseBeacon.internal.metrics.port }}
@@ -375,12 +381,19 @@ spec:
             {{- end }}
             - --beacon-nodes={{ $beacon_nodes }}
             - --builder-proposals
+            - --http
+            - --http-address=0.0.0.0
+            - --http-port={{ .Values.lighthouseValidator.internal.api.port }}
+            - --unencrypted-http-transport
             - --metrics
             - --metrics-address=0.0.0.0
             - --metrics-port={{ .Values.lighthouseValidator.internal.metrics.port }}
           ports:
             - name: launch
               containerPort: {{ .Values.lighthouseValidator.internal.launch.port }}
+              protocol: TCP
+            - name: api
+              containerPort: {{ .Values.lighthouseValidator.internal.api.port }}
               protocol: TCP
             - name: metrics
               containerPort: {{ .Values.lighthouseValidator.internal.metrics.port }}
