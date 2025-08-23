@@ -48,6 +48,11 @@ cd k8ev-kit
 kubectl create namespace eth-validator
 ```
 
+### Deploy the validator stack
+
+This repo provides patterns for the broader stack under `eth-validator/` and
+an optional API under `lighthouse-launch/`. Bring your preferred EL/CL/VC and
+wire them up using your own values files.
 ### Deploy Siren (dashboard)
 
 Siren shows validator status/metrics. The chart expects two K8s secrets:
@@ -91,12 +96,6 @@ kubectl rollout status deploy/siren
 kubectl port-forward svc/siren 3000:3000
 # open http://localhost:3000
 ```
-
-### Deploy the validator stack
-
-This repo provides patterns for the broader stack under `eth-validator/` and
-an optional API under `lighthouse-launch/`. Bring your preferred EL/CL/VC and
-wire them up using your own values files.
 
 ---
 
